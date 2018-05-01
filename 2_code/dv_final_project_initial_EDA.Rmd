@@ -1,0 +1,223 @@
+---
+title: "final_project_initial"
+author: "Dmitriy Vecheruk"
+date: "4/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(caret)
+library(DataExplorer)
+library(AppliedPredictiveModeling)
+library(vcd)
+library(gridExtra)
+```
+
+
+```{r message=F,warning=F}
+
+
+inp = read_csv("0_raw_data/bcn_listings.csv") 
+```
+
+```{r vis_functions include=F}
+plot_overview = function(df, x) {
+df = data.frame(df)
+y = df[,x]
+
+p1 = ggplot(df, aes(x= x, y = y)) + geom_boxplot() + xlab(x) + ylab("value") + 
+  ggtitle(x)
+p2 = ggplot() + geom_density(aes(x=y),na.rm = T) + 
+  geom_vline(aes(xintercept=mean(y,na.rm = T)), color = "red",linetype = 2) + xlab(x) +
+   ggtitle("")
+p3 = ggplot() + geom_point(aes(sample=y), stat = "qq", size = 0.1)
+p4 = ggplot()  + geom_density(aes(x=log(y)),na.rm = T) + xlab(paste0("log(",x,")"))
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+}
+
+plot_target_cor = function(df,x,trg_var_name){
+
+df_cc = df[,c(x,trg_var_name)]
+df_cc = as.data.frame(df_cc[complete.cases(df_cc),]) 
+trg_cor = cor.test(df_cc[,x],df_cc[,trg_var_name])
+df_cc$x_log = log(df_cc[trg_var_name>0,x])
+trg_log_cor = cor.test(df_cc[df_cc$x_log>0,"x_log"],df_cc[df_cc$x_log>0,trg_var_name])
+
+cor_out = paste("cor:",round(trg_cor$estimate,3),
+                "p-val:", ifelse(trg_cor$p.value<0.01,"<0.01",round(trg_cor$p.value,3)))
+cor_out_log = paste("cor (log):",round(trg_log_cor$estimate,3),
+                "p-val:", ifelse(trg_log_cor$p.value<0.01,"<0.01",round(trg_log_cor$p.value,3)))
+
+x_pos = quantile(df_cc[,x],0.9)
+y_pos_0 = quantile(df_cc[,trg_var_name],0.006)
+y_pos_1 = quantile(df_cc[,trg_var_name],0.004)
+
+p = ggplot(data = df_cc, aes_string(x=x,y=trg_var_name)) +
+  geom_point(size=1, alpha = 0.5) + geom_smooth(method = "lm") +
+  annotate("text", x = x_pos, y = y_pos_0,label = cor_out,size=3) +
+  annotate("text", x = x_pos, y = y_pos_1,label = cor_out_log, size=3) +
+  ylab(trg_var_name) + ggtitle(paste(x,"vs",trg_var_name))
+p
+}
+
+plot_overview_target = function(df,x,trg_var_name){
+  grobs = list(plot_overview(df,x),plot_target_cor(df,x,trg_var_name))
+  grid.arrange(grobs = grobs, nrow = 1,widths=c(5,4), 
+               top = paste(x,"overview and correlation vs.",trg_var_name))
+}
+```
+
+### Inspect the variable subset
+
+```{r}
+var_subset = c("price", "review_scores_communication","review_scores_location","review_scores_value","requires_license","instant_bookable","is_business_travel_ready","cancellation_policy","require_guest_profile_picture","require_guest_phone_verification","calculated_host_listings_count","reviews_per_month","neighbourhood_cleansed","zipcode")
+
+inp_subset = inp %>% select(one_of(var_subset))
+
+```
+
+#### Summary 
+
+```{r cache=T}
+
+dollars_to_numeric = function(input) {
+  out = sub("\\$", "", input)
+  out = as.numeric(sub(",", "", out))
+  return(out)
+}
+
+inp_subset= inp_subset %>% 
+  mutate_at(c("price"),dollars_to_numeric) %>% 
+  mutate_at(c("requires_license","instant_bookable","is_business_travel_ready","cancellation_policy",
+              "require_guest_profile_picture","require_guest_phone_verification",
+              "neighbourhood_cleansed","zipcode","review_scores_communication",
+              "review_scores_location","review_scores_value"),as.factor)
+summary(inp_subset)
+```
+
+#### Missing values
+
+```{r}
+plot_missing(inp_subset, title = "Percentage of missing data per variable")
+```
+
+1) Variables with missing data: `zipcode`(5%), Review values `reviews_per_month`(20%),`review_scores_communication`(21%),
+`review_scores_location`(21%),`review_scores_value`(21%) - these missing observations are for the same rows
+
+#### NZV
+
+```{r }
+nzv = nearZeroVar(inp_subset, saveMetrics= TRUE)
+nzv
+```
+
+1) zero variance - kick out: `requires_license`: 
+2) near-zero variance - unlikely to be useful: `is_business_travel_ready`, `require_guest_profile_picture`,`require_guest_phone_verification`
+
+#### Distributions of discrete variables
+
+```{r}
+# Drop the index column
+df = inp_subset %>% select(-requires_license)
+
+df_viz = split_columns(data = df)
+```
+
+```{r}
+## View distribution of all discrete variables
+plot_bar(df_viz$discrete, title = "Frequency counts for discrete variables")
+```
+
+1) Too many levels for a non-binned factor: `zipcode`: 99 categories, `neighbourhood_cleansed`: 72 categories - can probably cut down digits of zip and impute missing based on neighborhood average zip!
+2) The three review scores  variables are very unbalanced and should be transformed to 10,9,8, and below 8.
+3) `cancellation_policy`: merge both "super_strict" groups into one level (or even into "strict")
+
+#### Distributions of continuous variables
+
+```{r}
+## View distribution of all continuous variables
+plot_histogram(df_viz$continuous, "Histograms of continous variables")
+```
+
+1) Price is log-distributed
+
+```{r}
+plot_histogram(log(df$price),"Histogram of log(price)")
+```
+
+2) `calculated_host_listings_count` is Poisson-distributed (**Q:** How to transform it?)
+
+```{r}
+plot_histogram(df$calculated_host_listings_count,"Histogram of calculated_host_listings_count")
+```
+
+3) `reviews_per_month` is very skewed and can be log-transformed
+
+```{r}
+plot_histogram(log(df$reviews_per_month),"Histogram of log(reviews_per_month)")
+```
+
+#### 1.2. Bivariate analysis
+  
+```{r}
+## View correlation of all continuous varaibles (for complete cases)
+
+plot_correlation(df_viz$continuous[complete.cases(df_viz$continuous),],
+                 type = "continuous",title = "Pairwise correlations between continuous variables")
+```
+
+
+The pairwise relationships between the continuous variables and the response are displayed below
+
+```{r}
+qplot(calculated_host_listings_count,price,data=df,alpha=0.5) + ggtitle("calculated_host_listings_count vs price")
+```
+
+```{r}
+qplot(calculated_host_listings_count,log(price),data=df,alpha=0.5) +
+  geom_smooth(method = "lm")+
+  ggtitle("calculated_host_listings_count vs log(price)")
+
+```
+
+1) A positive link with the price for `calculated_host_listings_count`, also can try binning!
+
+```{r}
+qplot(reviews_per_month,price,data=df, alpha=0.5) +
+  ggtitle("reviews_per_month vs price")
+```
+
+```{r}
+qplot(log(reviews_per_month),log(price),data=df,alpha=0.5) + 
+  geom_smooth()+
+  ggtitle("Log-log: reviews_per_month vs price")
+
+# qplot(reviews_per_month,log(price),data=df %>% filter(reviews_per_month<50),alpha=0.5) + ggtitle("Log-log: reviews_per_month vs price")
+```
+
+2) No relationship with `reviews_per_month`.
+
+####  Discrete predictors
+
+```{r}
+df1 = cbind(df_viz$discrete, log(df$price))
+
+disc_vars = names(df_viz$discrete)
+
+for (i in disc_vars){
+  plot_boxplot(data = df1,by = i,notch=T)
+}
+
+```
+
+1) Useful predictors: `is_business_ready`(t:+), `cancellation_policy`(strict:+),
+`require_phone_verification`(t:+), probably `neighborhood` or `zip`
