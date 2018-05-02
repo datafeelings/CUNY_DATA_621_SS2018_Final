@@ -14,5 +14,3 @@ stats = function (dataframe) {
   Percent_Outliers = sapply(dataframe, function(x) {round(length(which(x>mean(x)+ 3*sd(x) | x<mean(x)- 3*sd(x))) / length(x),2)*100})
   return(cbind(Min, Max, Mean, Median, St.dev, Skew, Kurtosis, NA_Count, Percent_NA, Outliers_Count, Percent_Outliers))
 }
-
-wine = read.csv("wineTrain.csv", header = T)
