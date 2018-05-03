@@ -1,0 +1,258 @@
+---
+title: "eda_template"
+author: ""
+date: "5/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exploratory Analysis
+
+```{r}
+# Load the required packages
+library(ggplot2)
+# library(caret)
+library(e1071)
+library(dplyr)
+library(plyr)
+library(readr)
+library(boot)
+library(car)
+# library(DataExplorer)
+library(knitr)
+library(MASS)
+
+
+# Load the stats and vis functions
+source("2_code/Graphical_Functions.R")
+source("2_code/stats_function.R")
+
+```
+
+```{r}
+# Load the full data
+
+inp = read_csv("0_raw_data/bcn_listings.csv.gz")
+inp = data.frame(inp)
+```
+
+```{r}
+# Variable subset and preprocess
+
+newdata = subset(inp, select = c(price,review_scores_communication,review_scores_location,review_scores_value,requires_license,instant_bookable,is_business_travel_ready,cancellation_policy,require_guest_profile_picture,require_guest_phone_verification,calculated_host_listings_count,reviews_per_month,neighbourhood_cleansed,zipcode,neighbourhood_group_cleansed))
+
+# Changing factors to int char
+newdata$price = as.numeric(gsub("[\\$,]", "", newdata$price))
+
+
+```
+
+### Variable overview
+
+
+**review_scores_communication**
+  
+*Distribution*
+  
+```{r}
+kable(stats(data.frame(newdata$review_scores_communication)))
+```
+
+*Histogram*
+
+```{r}
+tmp = "review_scores_communication"
+bar621(df=newdata, review_scores_communication, xlab="", title=paste("Histogram of",tmp))
+```
+
+
+
+**review_scores_location**
+  
+*Distribution*
+  
+```{r}
+kable(stats(data.frame(newdata$review_scores_location)))
+```
+
+*Histogram*
+
+```{r}
+tmp = "review_scores_location"
+bar621(df=newdata, review_scores_location, xlab="", title=paste("Histogram of",tmp))
+```
+
+**review_scores_value**
+  
+*Distribution*
+  
+```{r}
+kable(stats(data.frame(newdata$review_scores_value)))
+```
+
+*Histogram*
+
+```{r}
+tmp = "review_scores_value"
+bar621(df=newdata, review_scores_value, xlab="", title=paste("Histogram of",tmp))
+```
+
+
+**requires_license**
+
+Variable excluded as all observations have the same value.
+  
+  
+**instant_bookable**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$instant_bookable,dnn = "instant_bookable"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "instant_bookable"
+bar621(df=newdata, instant_bookable, xlab="", title=paste("Frequency of levels of",tmp))
+```
+
+
+**is_business_travel_ready**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$is_business_travel_ready,dnn = "is_business_travel_ready"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "is_business_travel_ready"
+bar621(df=newdata, is_business_travel_ready, xlab="", title=paste("Frequency of levels of",tmp))
+```
+
+
+**cancellation_policy**
+    
+This is a factor with five levels corresponding to cancellation policy types.
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$cancellation_policy,dnn = "cancellation_policy"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "cancellation_policy"
+bar621(df=newdata, cancellation_policy, xlab="", title=paste("Frequency of levels of",tmp))
+```
+
+
+**require_guest_profile_picture**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$require_guest_profile_picture,dnn = "require_guest_profile_picture"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "require_guest_profile_picture"
+bar621(df=newdata, require_guest_profile_picture, xlab="", title=paste("Frequency of levels of",tmp))
+```
+
+
+**require_guest_phone_verification**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$require_guest_phone_verification,dnn = "require_guest_phone_verification"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "require_guest_phone_verification"
+bar621(df=newdata, require_guest_phone_verification, xlab="", title=paste("Frequency of levels of",tmp))
+```
+
+**calculated_host_listings_count**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(stats(data.frame(newdata$calculated_host_listings_count)))
+```
+
+*Histogram*
+
+```{r}
+tmp = "calculated_host_listings_count"
+hist621(df=newdata, calculated_host_listings_count, xlab="", title=paste("Histogram of",tmp))
+```
+
+**reviews_per_month**
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+*Distribution*
+  
+```{r}
+kable(stats(data.frame(newdata$reviews_per_month)))
+```
+
+*Histogram*
+
+```{r}
+tmp = "reviews_per_month"
+hist621(df=newdata, reviews_per_month, xlab="", title=paste("Histogram of",tmp))
+```
+
+**neighbourhood_cleansed**
+    
+This is a factor with two 72 levels correspondent to the neighborhoods of Barcelona. Will not be considered further as data on districts the neighborhoods belong to is available (see below).
+  
+*Distribution*
+  
+```{r}
+str(data.frame(newdata$neighbourhood_cleansed))
+```
+  
+
+**neighbourhood_group_cleansed**
+    
+This is a factor with ten levels correspondent to the ten districts of the city (location of the listing).
+  
+*Distribution*
+  
+```{r}
+kable(table(newdata$neighbourhood_group_cleansed,dnn = "neighbourhood_group_cleansed"))
+```
+
+*Relative frequency*
+
+```{r}
+tmp = "neighbourhood_group_cleansed"
+bar621(df=newdata, neighbourhood_group_cleansed, xlab="", title=paste("Frequency of levels of",tmp))
+```

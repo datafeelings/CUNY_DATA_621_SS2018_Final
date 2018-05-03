@@ -4,21 +4,21 @@ p_load(ggplot2, ggthemes)
 
 
 # read data
-mydata <- read.csv("bcn_listings.csv")
-
-###### scrub  data fields, for example graphical onlyt################################
-
-# fix price field
-mydata$price <- as.character(mydata$price)
-mydata$price <- as.numeric(str_replace_all(mydata$price, "[\\$,]",""))
-
-# convert host_since
-mydata$host_since <- as.Date(mydata$host_since)
-
-# convert dates to years from minimum start date
-min_dt <- min(mydata$host_since, na.rm=T)
-
-mydata$host_since <- as.numeric(mydata$host_since - min_dt) / 365.25  # convert to years
+# mydata <- read.csv("bcn_listings.csv")
+# 
+# ###### scrub  data fields, for example graphical onlyt################################
+# 
+# # fix price field
+# mydata$price <- as.character(mydata$price)
+# mydata$price <- as.numeric(str_replace_all(mydata$price, "[\\$,]",""))
+# 
+# # convert host_since
+# mydata$host_since <- as.Date(mydata$host_since)
+# 
+# # convert dates to years from minimum start date
+# min_dt <- min(mydata$host_since, na.rm=T)
+# 
+# mydata$host_since <- as.numeric(mydata$host_since - min_dt) / 365.25  # convert to years
 
 ###################################################################################
 
@@ -39,7 +39,7 @@ hist621 <- function(df, x, xlab="", title="", bins=30) {
 
 
 # example histogram output
-hist621(mydata, price)
+# hist621(mydata, price)
 
 
 # scatterplot function
@@ -61,7 +61,7 @@ scat621 <- function(df, x, y, xlab="", ylab="", title="", method="loess") {
 }
 
 # example scatterplot output
-scat621(mydata,host_since,log(price))
+# scat621(mydata,host_since,log(price))
 
 
 # boxplot function
@@ -82,7 +82,7 @@ box621 <- function(df, x, y, xlab="", ylab="", title="") {
 }
 
 # example boxplot output
-box621(mydata,host_identity_verified, log(price))
+# box621(mydata,host_identity_verified, log(price))
 
 
 # barplot function
@@ -107,10 +107,10 @@ bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
 }
 
 # example barplot output
-bar621(mydata, host_identity_verified) 
+# bar621(mydata, host_identity_verified) 
 
 # another barplot example
-bar621(mydata, host_identity_verified, hadj=-0.2) + coord_flip()
+# bar621(mydata, host_identity_verified, hadj=-0.2) + coord_flip()
 
 
 
