@@ -27,232 +27,404 @@ library(MASS)
 
 
 # Load the stats and vis functions
-source("2_code/Graphical_Functions.R")
-source("2_code/stats_function.R")
+source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/Graphical_Functions.R")
+source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/stats_function.R")
 
 ```
 
-```{r}
+```{r cache=T}
 # Load the full data
 
-inp = read_csv("0_raw_data/bcn_listings.csv.gz")
+inp = read_csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/0_raw_data/bcn_listings.csv.gz")
 inp = data.frame(inp)
 ```
 
 ```{r}
 # Variable subset and preprocess
 
-newdata = subset(inp, select = c(price,review_scores_communication,review_scores_location,review_scores_value,requires_license,instant_bookable,is_business_travel_ready,cancellation_policy,require_guest_profile_picture,require_guest_phone_verification,calculated_host_listings_count,reviews_per_month,neighbourhood_cleansed,zipcode,neighbourhood_group_cleansed))
+inp = subset(inp, select = c(price,review_scores_communication,review_scores_location,review_scores_value,requires_license,instant_bookable,is_business_travel_ready,cancellation_policy,require_guest_profile_picture,require_guest_phone_verification,calculated_host_listings_count,reviews_per_month,neighbourhood_cleansed,zipcode,neighbourhood_group_cleansed))
 
 # Changing factors to int char
-newdata$price = as.numeric(gsub("[\\$,]", "", newdata$price))
+inp$price = as.numeric(gsub("[\\$,]", "", inp$price))
 
 
 ```
 
-### Variable overview
+## Variable overview
 
 
-**review_scores_communication**
+### review_scores_communication
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(stats(data.frame(newdata$review_scores_communication)))
+kable(stats(data.frame(inp$review_scores_communication)))
 ```
 
-*Histogram*
+#### Relative frequency
+
+```{r}
+
+table(inp$review_scores_communication, useNA = "always")
+
+```
+
 
 ```{r}
 tmp = "review_scores_communication"
-bar621(df=newdata, review_scores_communication, xlab="", title=paste("Histogram of",tmp))
+
+bar621(inp, factor(review_scores_communication),
+       xlab=tmp,
+       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 ```
 
+#### Transformation
 
-
-**review_scores_location**
-  
-*Distribution*
+All scores below 8 are merged into a single group.
   
 ```{r}
-kable(stats(data.frame(newdata$review_scores_location)))
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_communication_bin = case_when(
+  review_scores_communication <  8 ~ "< 8",
+  review_scores_communication >=  8 ~ as.character(review_scores_communication))
+  ) 
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, review_scores_communication_bin, log(price))
+
+```  
+
+### review_scores_location
+  
+#### Distribution
+  
+```{r}
+kable(stats(data.frame(inp$review_scores_location)))
 ```
 
-*Histogram*
+#### Relative frequency
+
+```{r}
+
+table(inp$review_scores_communication, useNA = "always")
+
+```
+
 
 ```{r}
 tmp = "review_scores_location"
-bar621(df=newdata, review_scores_location, xlab="", title=paste("Histogram of",tmp))
+
+bar621(inp, factor(review_scores_location),
+       xlab=tmp,
+       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 ```
 
-**review_scores_value**
-  
-*Distribution*
+#### Transformation
+
+All scores below 8 are merged into a single group.
   
 ```{r}
-kable(stats(data.frame(newdata$review_scores_value)))
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_location_bin = case_when(
+  review_scores_location <  8 ~ "< 8",
+  review_scores_location >=  8 ~ as.character(review_scores_location))
+  ) 
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, review_scores_location_bin, log(price))
+
+```  
+
+### review_scores_value
+  
+#### Distribution
+  
+```{r}
+kable(stats(data.frame(inp$review_scores_value)))
 ```
 
-*Histogram*
+#### Relative frequency
+
+```{r}
+
+table(inp$review_scores_value, useNA = "always")
+
+```
+
 
 ```{r}
 tmp = "review_scores_value"
-bar621(df=newdata, review_scores_value, xlab="", title=paste("Histogram of",tmp))
+
+bar621(inp, factor(review_scores_value),
+       xlab=tmp,
+       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 ```
 
+#### Transformation
 
-**requires_license**
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_value_bin = case_when(
+  review_scores_value <  8 ~ "< 8",
+  review_scores_value >=  8 ~ as.character(review_scores_value))
+  ) 
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, review_scores_value_bin, log(price))
+
+``` 
+
+### requires_license
 
 Variable excluded as all observations have the same value.
   
   
-**instant_bookable**
+### instant_bookable
     
 This is a factor with two levels: true ("t") and false ("f")
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$instant_bookable,dnn = "instant_bookable"))
+kable(table(inp$instant_bookable,dnn = "instant_bookable"))
 ```
 
-*Relative frequency*
+#### Relative frequency
 
 ```{r}
 tmp = "instant_bookable"
-bar621(df=newdata, instant_bookable, xlab="", title=paste("Frequency of levels of",tmp))
+bar621(df=inp, instant_bookable, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,11000))
 ```
 
+#### Relationship to Price  
+  
+```{r}
+box621(inp, instant_bookable, log(price))
 
-**is_business_travel_ready**
+``` 
+
+### is_business_travel_ready
     
 This is a factor with two levels: true ("t") and false ("f")
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$is_business_travel_ready,dnn = "is_business_travel_ready"))
+kable(table(inp$is_business_travel_ready,dnn = "is_business_travel_ready"))
 ```
 
-*Relative frequency*
+#### Relative frequency
 
 ```{r}
 tmp = "is_business_travel_ready"
-bar621(df=newdata, is_business_travel_ready, xlab="", title=paste("Frequency of levels of",tmp))
+bar621(df=inp, is_business_travel_ready, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
 
+#### Relationship to Price  
+  
+```{r}
+box621(inp, is_business_travel_ready, log(price))
 
-**cancellation_policy**
+``` 
+
+### cancellation_policy
     
 This is a factor with five levels corresponding to cancellation policy types.
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$cancellation_policy,dnn = "cancellation_policy"))
+kable(table(inp$cancellation_policy,dnn = "cancellation_policy"))
 ```
 
-*Relative frequency*
+#### Relative frequency
+
 
 ```{r}
 tmp = "cancellation_policy"
-bar621(df=newdata, cancellation_policy, xlab="", title=paste("Frequency of levels of",tmp))
+
+bar621(inp, factor(cancellation_policy),
+       xlab=tmp,
+       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 ```
 
+#### Transformation
 
-**require_guest_profile_picture**
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(cancellation_policy_bin = ifelse(
+  grepl("strict", cancellation_policy, fixed = TRUE),  "strict", cancellation_policy)
+  ) 
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, cancellation_policy_bin, log(price))
+
+``` 
+
+
+### require_guest_profile_picture
     
 This is a factor with two levels: true ("t") and false ("f")
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$require_guest_profile_picture,dnn = "require_guest_profile_picture"))
+kable(table(inp$require_guest_profile_picture,dnn = "require_guest_profile_picture"))
 ```
 
-*Relative frequency*
+#### Relative frequency
 
 ```{r}
 tmp = "require_guest_profile_picture"
-bar621(df=newdata, require_guest_profile_picture, xlab="", title=paste("Frequency of levels of",tmp))
+bar621(df=inp, require_guest_profile_picture, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
 
+#### Relationship to Price  
+  
+```{r}
+box621(inp, require_guest_profile_picture, log(price))
 
-**require_guest_phone_verification**
+``` 
+
+
+### require_guest_phone_verification
     
 This is a factor with two levels: true ("t") and false ("f")
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$require_guest_phone_verification,dnn = "require_guest_phone_verification"))
+kable(table(inp$require_guest_phone_verification,dnn = "require_guest_phone_verification"))
 ```
 
-*Relative frequency*
+#### Relative frequency
 
 ```{r}
 tmp = "require_guest_phone_verification"
-bar621(df=newdata, require_guest_phone_verification, xlab="", title=paste("Frequency of levels of",tmp))
+bar621(df=inp, require_guest_phone_verification, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
 
-**calculated_host_listings_count**
-    
-This is a factor with two levels: true ("t") and false ("f")
-  
-*Distribution*
+#### Relationship to Price  
   
 ```{r}
-kable(stats(data.frame(newdata$calculated_host_listings_count)))
+box621(inp, require_guest_phone_verification, log(price))
+
 ```
 
-*Histogram*
+### calculated_host_listings_count
+    
+  
+#### Distribution
+  
+```{r}
+kable(stats(data.frame(inp$calculated_host_listings_count)))
+```
+
+#### Histogram
 
 ```{r}
 tmp = "calculated_host_listings_count"
-hist621(df=newdata, calculated_host_listings_count, xlab="", title=paste("Histogram of",tmp))
+hist621(df=inp, calculated_host_listings_count)
 ```
 
-**reviews_per_month**
-    
-This is a factor with two levels: true ("t") and false ("f")
-  
-*Distribution*
+#### Box-Cox  
   
 ```{r}
-kable(stats(data.frame(newdata$reviews_per_month)))
+boxcoxfit(inp$calculated_host_listings_count[!is.na(inp$calculated_host_listings_count)])
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp %>% sample_n(5000), calculated_host_listings_count^(-0.6), log(price))
+
+```  
+
+### reviews_per_month
+    
+#### Distribution
+  
+```{r}
+kable(stats(data.frame(inp$reviews_per_month)))
 ```
 
-*Histogram*
+#### Histogram
 
 ```{r}
 tmp = "reviews_per_month"
-hist621(df=newdata, reviews_per_month, xlab="", title=paste("Histogram of",tmp))
+hist621(df=inp, reviews_per_month)
 ```
 
-**neighbourhood_cleansed**
+#### Box-Cox  
+  
+```{r}
+boxcoxfit(inp$reviews_per_month[!is.na(inp$reviews_per_month)])
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp %>% sample_n(5000), reviews_per_month^(0.2), log(price))
+
+```  
+
+### neighbourhood_cleansed
     
 This is a factor with two 72 levels correspondent to the neighborhoods of Barcelona. Will not be considered further as data on districts the neighborhoods belong to is available (see below).
   
-*Distribution*
+#### Distribution
   
 ```{r}
-str(data.frame(newdata$neighbourhood_cleansed))
+str(data.frame(inp$neighbourhood_cleansed))
 ```
   
 
-**neighbourhood_group_cleansed**
+### neighbourhood_group_cleansed
     
 This is a factor with ten levels correspondent to the ten districts of the city (location of the listing).
   
-*Distribution*
+#### Distribution
   
 ```{r}
-kable(table(newdata$neighbourhood_group_cleansed,dnn = "neighbourhood_group_cleansed"))
+kable(table(inp$neighbourhood_group_cleansed,dnn = "neighbourhood_group_cleansed"))
 ```
 
-*Relative frequency*
+#### Relative frequency
 
 ```{r}
 tmp = "neighbourhood_group_cleansed"
-bar621(df=newdata, neighbourhood_group_cleansed, xlab="", title=paste("Frequency of levels of",tmp))
+bar621(df=inp, neighbourhood_group_cleansed, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,10000))
+```
+
+#### Relationship to Price  
+  
+```{r}
+box621(inp, neighbourhood_group_cleansed, log(price))
+
 ```
