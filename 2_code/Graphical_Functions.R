@@ -1,4 +1,5 @@
 
+
 # histogram function
 hist621 <- function(df, x, xlab="", title="", bins=30) {
   
@@ -68,6 +69,4 @@ bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
               color = 'darkred')
  
 }
-
-
 

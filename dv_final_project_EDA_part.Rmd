@@ -26,8 +26,10 @@ source("stats_function.R")
 
 ```{r message=F,warning=F}
 
-inp = read_csv("") 
+inp = read_csv("0_raw_data/bcn_listings.csv.gz") 
 ```
+
+
 
 ```{r vis_functions include=F}
 plot_overview = function(df, x) {
