@@ -1,27 +1,3 @@
-# load libraries
-if (!require(pacman)) install.packages('pacman'); library(pacman)
-p_load(ggplot2, ggthemes)
-
-
-# read data
-# mydata <- read.csv("bcn_listings.csv")
-# 
-# ###### scrub  data fields, for example graphical onlyt################################
-# 
-# # fix price field
-# mydata$price <- as.character(mydata$price)
-# mydata$price <- as.numeric(str_replace_all(mydata$price, "[\\$,]",""))
-# 
-# # convert host_since
-# mydata$host_since <- as.Date(mydata$host_since)
-# 
-# # convert dates to years from minimum start date
-# min_dt <- min(mydata$host_since, na.rm=T)
-# 
-# mydata$host_since <- as.numeric(mydata$host_since - min_dt) / 365.25  # convert to years
-
-###################################################################################
-
 
 
 # histogram function
@@ -36,10 +12,6 @@ hist621 <- function(df, x, xlab="", title="", bins=30) {
          title= ifelse(title=="",title_default,title)) + 
     theme(plot.title = element_text(hjust = 0.5))
 } 
-
-
-# example histogram output
-# hist621(mydata, price)
 
 
 # scatterplot function
@@ -60,10 +32,6 @@ scat621 <- function(df, x, y, xlab="", ylab="", title="", method="loess") {
     
 }
 
-# example scatterplot output
-# scat621(mydata,host_since,log(price))
-
-
 # boxplot function
 box621 <- function(df, x, y, xlab="", ylab="", title="") {
   x1 <- eval(substitute(x),df, parent.frame()) 
@@ -80,10 +48,6 @@ box621 <- function(df, x, y, xlab="", ylab="", title="") {
     theme(plot.title = element_text(hjust = 0.5)) 
 
 }
-
-# example boxplot output
-# box621(mydata,host_identity_verified, log(price))
-
 
 # barplot function
 bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
@@ -105,12 +69,4 @@ bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
               color = 'darkred')
  
 }
-
-# example barplot output
-# bar621(mydata, host_identity_verified) 
-
-# another barplot example
-# bar621(mydata, host_identity_verified, hadj=-0.2) + coord_flip()
-
-
 
