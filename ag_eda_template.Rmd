@@ -1,0 +1,275 @@
+---
+title: "eda_template"
+author: "Aaron Grzasko"
+date: "May 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, comment=NA,
+                      options(width=120), message=FALSE,
+                      warning=FALSE, fig.align='center')
+```
+
+```{r}
+# load libraries and custom functions
+
+if (!require(pacman)) install.packages('pacman'); library(pacman)
+
+p_load(ggplot2, dplyr, ggthemes, geoR,stringr, knitr, readr, moments, DataExplorer)
+
+source('https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/Graphical_Functions.R')
+
+source('https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/stats_function.R')
+
+```  
+  
+```{r}
+
+# Load the full data
+inp <- read_csv('https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/0_raw_data/bcn_listings.csv.gz')
+inp <- data.frame(inp)
+
+# fix price variable
+inp$price <- as.numeric(gsub("[\\$,]", "", inp$price))
+
+```
+  
+## Variable Overview  
+
+### host_since  
+  
+```{r}
+# convert to date; then conver to number of years since minimum date
+inp$host_since <- as.Date(inp$host_since)
+inp$host_since <- as.numeric(inp$host_since - min(inp$host_since, na.rm=T)) / 365.25
+```  
+  
+#### Distribution  
+```{r}
+stats(data.frame(inp$host_since))
+```  
+  
+#### Histogram  
+```{r}  
+hist621(inp, host_since)
+```  
+  
+#### Box-Cox  
+  
+```{r}
+boxcoxfit(inp$host_since[!is.na(inp$host_since)] + 0.001)
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp, host_since^1.2, log(price))
+
+```  
+  
+
+  
+### host_about  
+  
+```{r}
+# convert to length
+inp$host_about <- nchar(inp$host_about)
+inp$host_about[is.na(inp$host_about)] <- 0
+
+```  
+  
+#### Distribution  
+```{r}
+stats(data.frame(inp$host_about))
+
+```
+
+#### Histogram  
+  
+```{r}
+hist621(inp, host_about)
+```  
+  
+#### Box-Cox  
+  
+```{r}
+boxcoxfit(inp$host_about + 1)
+```
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp, log(host_about+1), log(price))
+
+```  
+  
+### host_response_time  
+  
+#### Distribution  
+```{r}
+inp$host_response_time <- factor(inp$host_response_time)
+
+table(inp$host_response_time, useNA = "always")
+
+group_category(data=inp,feature="host_response_time", threshold=0.0001)
+
+```
+  
+#### Bar Chart  
+  
+```{r}
+
+bar621(inp,
+       reorder(host_response_time, -table(host_response_time)[host_response_time]),
+       xlab="host_response_time",
+       title="host_response_time by type") + ylim(c(0,10050))
+```
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, host_response_time, log(price))
+
+```
+  
+### host_response_rate  
+  
+```{r}
+inp$host_response_rate <- as.numeric(str_replace(inp$host_response_rate, "%" ,""))/100
+```  
+  
+#### Distribution  
+  
+```{r}
+stats(data.frame(inp$host_response_rate))
+
+
+```
+  
+#### Histogram  
+  
+````{r}
+hist621(inp, host_response_rate, bins=15)
+
+```
+  
+```{r}
+boxcoxfit(inp$host_response_rate[!is.na(inp$host_response_rate)]+0.001)
+
+```
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp, host_response_rate^4, log(price))
+
+```  
+  
+### host_is_superhost  
+  
+#### Distribution  
+````{r}
+table(inp$host_is_superhost, useNA = 'always')
+````  
+  
+#### Bar Chart  
+  
+```{r}
+bar621(inp,host_is_superhost) +  ylim(c(0,17000))
+
+```  
+  
+#### Relationship to Price 
+    
+```{r}
+box621(inp,host_is_superhost,log(price))  
+  
+```  
+  
+### host_listings_count  
+  
+#### Distribution  
+  
+```{r}
+stats(data.frame(inp$host_listings_count))
+```  
+  
+#### Histogram  
+  
+```{r}
+hist621(inp, host_listings_count)
+
+```  
+  
+#### Box Cox  
+  
+```{r}
+boxcoxfit(inp$host_listings_count[!is.na(inp$host_listings_count)]+0.001)
+
+```  
+  
+#### Relationship to Price  
+  
+```{r}
+scat621(inp,log(host_listings_count),log(price))
+
+```  
+  
+### host_identity_verified  
+  
+#### Distribution  
+  
+```{r}
+inp$host_identity_verified <- factor(inp$host_identity_verified)
+table(inp$host_identity_verified, useNA = "always")
+```  
+  
+#### Bar Chart  
+  
+```{r}
+bar621(inp,host_identity_verified) + ylim(c(0,10500))
+
+```  
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp, host_identity_verified, log(price))
+
+```  
+  
+### property_type  
+  
+```{r}
+inp$property_type <- factor(inp$property_type)
+
+```
+  
+#### Distribution  
+  
+```{r}
+sort(table(inp$property_type, useNA = "always"), decreasing = T)
+
+```  
+  
+#### Bar Chart  
+  
+Original  
+```{r}
+bar621(inp, reorder(property_type, -table(property_type)[property_type]),
+       vadj = -50, hadj = 0.2,title="property_type by type",xlab="property_type") + ylim(c(0,18000)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```  
+  
+#### Relationship to Price  
+  
+```{r}
+box621(inp,reorder(property_type, -table(property_type)[property_type]),
+       log(price),
+       title = "log(price) vs. property_type", xlab="property_type") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
