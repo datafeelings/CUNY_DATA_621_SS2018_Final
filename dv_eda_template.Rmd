@@ -11,10 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Exploratory Analysis
 
-```{r}
+```{r include=F, message=F, warning=F}
 # Load the required packages
 library(ggplot2)
-# library(caret)
+library(geoR)
 library(e1071)
 library(dplyr)
 library(plyr)
@@ -65,7 +65,7 @@ kable(stats(data.frame(inp$review_scores_communication)))
 
 ```{r}
 
-table(inp$review_scores_communication, useNA = "always")
+kable(t(table(inp$review_scores_communication, useNA = "always")))
 
 ```
 
@@ -85,17 +85,18 @@ All scores below 8 are merged into a single group.
 ```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_communication_bin = case_when(
+inp = inp %>% mutate(review_scores_communication = case_when(
   review_scores_communication <  8 ~ "< 8",
   review_scores_communication >=  8 ~ as.character(review_scores_communication))
-  ) 
+  ) %>% 
+  mutate(review_scores_communication = factor(review_scores_communication,exclude = NULL))
 
 ```
   
 #### Relationship to Price  
   
 ```{r}
-box621(inp, review_scores_communication_bin, log(price))
+box621(inp, review_scores_communication, log(price))
 
 ```  
 
@@ -111,7 +112,7 @@ kable(stats(data.frame(inp$review_scores_location)))
 
 ```{r}
 
-table(inp$review_scores_communication, useNA = "always")
+kable(t(table(inp$review_scores_location, useNA = "always")))
 
 ```
 
@@ -131,18 +132,18 @@ All scores below 8 are merged into a single group.
 ```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_location_bin = case_when(
+inp = inp %>% mutate(review_scores_location = case_when(
   review_scores_location <  8 ~ "< 8",
   review_scores_location >=  8 ~ as.character(review_scores_location))
-  ) 
+  ) %>% 
+  mutate(review_scores_location = factor(review_scores_location,exclude = NULL))
 
 ```
   
 #### Relationship to Price  
   
 ```{r}
-box621(inp, review_scores_location_bin, log(price))
-
+box621(inp, review_scores_location, log(price))
 ```  
 
 ### review_scores_value
@@ -157,7 +158,7 @@ kable(stats(data.frame(inp$review_scores_value)))
 
 ```{r}
 
-table(inp$review_scores_value, useNA = "always")
+kable(t(table(inp$review_scores_value, useNA = "always")))
 
 ```
 
@@ -177,17 +178,18 @@ All scores below 8 are merged into a single group.
 ```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_value_bin = case_when(
+inp = inp %>% mutate(review_scores_value = case_when(
   review_scores_value <  8 ~ "< 8",
   review_scores_value >=  8 ~ as.character(review_scores_value))
-  ) 
+  ) %>% 
+  mutate(review_scores_value = factor(review_scores_value,exclude = NULL))
 
 ```
   
 #### Relationship to Price  
   
 ```{r}
-box621(inp, review_scores_value_bin, log(price))
+box621(inp, review_scores_value, log(price))
 
 ``` 
 
@@ -213,6 +215,13 @@ tmp = "instant_bookable"
 bar621(df=inp, instant_bookable, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,11000))
 ```
 
+#### Transformation
+
+```{r}
+inp$instant_bookable = factor(inp$instant_bookable, exclude=F)
+```
+
+
 #### Relationship to Price  
   
 ```{r}
@@ -235,6 +244,12 @@ kable(table(inp$is_business_travel_ready,dnn = "is_business_travel_ready"))
 ```{r}
 tmp = "is_business_travel_ready"
 bar621(df=inp, is_business_travel_ready, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
+```
+
+#### Transformation
+
+```{r}
+inp$is_business_travel_ready = factor(inp$is_business_travel_ready, exclude=F)
 ```
 
 #### Relationship to Price  
@@ -272,16 +287,17 @@ All scores below 8 are merged into a single group.
 ```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(cancellation_policy_bin = ifelse(
+inp = inp %>% mutate(cancellation_policy = ifelse(
   grepl("strict", cancellation_policy, fixed = TRUE),  "strict", cancellation_policy)
-  ) 
+  ) %>% 
+  mutate(cancellation_policy = factor(cancellation_policy, exclude=NULL))
 
 ```
   
 #### Relationship to Price  
   
 ```{r}
-box621(inp, cancellation_policy_bin, log(price))
+box621(inp, cancellation_policy, log(price))
 
 ``` 
 
@@ -301,6 +317,12 @@ kable(table(inp$require_guest_profile_picture,dnn = "require_guest_profile_pictu
 ```{r}
 tmp = "require_guest_profile_picture"
 bar621(df=inp, require_guest_profile_picture, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
+```
+
+#### Transformation
+
+```{r}
+inp$require_guest_profile_picture = factor(inp$require_guest_profile_picture, exclude=F)
 ```
 
 #### Relationship to Price  
@@ -327,6 +349,12 @@ kable(table(inp$require_guest_phone_verification,dnn = "require_guest_phone_veri
 tmp = "require_guest_phone_verification"
 bar621(df=inp, require_guest_phone_verification, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
+  
+#### Transformation
+
+```{r}
+inp$require_guest_phone_verification = factor(inp$require_guest_phone_verification, exclude=F)
+```
 
 #### Relationship to Price  
   
@@ -351,17 +379,30 @@ tmp = "calculated_host_listings_count"
 hist621(df=inp, calculated_host_listings_count)
 ```
 
-#### Box-Cox  
+#### Transformation
+  
+As the check of the relationship with log(price) showed a non-linear link both for the raw values, and the Box-Cox values of `calculated_host_listings_count`, the variable was transformed to a factor with the following bins per value of calculated host listings: "1-2","3-10","11-50",">50".
+
   
 ```{r}
-boxcoxfit(inp$calculated_host_listings_count[!is.na(inp$calculated_host_listings_count)])
-
+inp = inp %>% mutate(calculated_host_listings_count_bin = case_when(
+  calculated_host_listings_count <  3 ~ "1-2",
+  calculated_host_listings_count <= 10 ~ "3-10",
+  calculated_host_listings_count <= 50 ~ "11-50",
+  calculated_host_listings_count > 50 ~ ">50")) %>% 
+  mutate(calculated_host_listings_count_bin = factor(calculated_host_listings_count_bin,exclude = NULL))
 ```
   
+
 #### Relationship to Price  
   
 ```{r}
-scat621(inp %>% sample_n(5000), calculated_host_listings_count^(-0.6), log(price))
+box621(inp,x = calculated_host_listings_count_bin, y =log(price))
+```
+  
+```{r include=F}
+# Original data shows a non-linear link
+# scat621(inp %>% sample_n(5000), calculated_host_listings_count, log(price))
 
 ```  
 
@@ -386,11 +427,30 @@ hist621(df=inp, reviews_per_month)
 boxcoxfit(inp$reviews_per_month[!is.na(inp$reviews_per_month)])
 
 ```
+
+#### Transformation
+
+As a check of the relationship with log(price) showed a non-linear link both for the raw values, and the Box-Cox values of `reviews_per_month`, the variable was transformed to a factor with the following bins per number of monthly reviews: "0-2","3-10",">10".
+
+```{r}
+inp = inp %>% mutate(reviews_per_month_bin = case_when(
+  reviews_per_month <  3 ~ "0-2",
+  reviews_per_month <= 10 ~ "3-10",
+  reviews_per_month > 10 ~ ">10")) %>% 
+  mutate(reviews_per_month_bin = factor(reviews_per_month_bin,exclude = NULL))
+```
+
   
 #### Relationship to Price  
   
 ```{r}
-scat621(inp %>% sample_n(5000), reviews_per_month^(0.2), log(price))
+box621(inp,reviews_per_month_bin, log(price))
+```
+  
+  
+```{r include=F}
+# Original data shows a linear link only below 10 reviews per month
+# scat621(inp%>% sample_n(5000), reviews_per_month, log(price))
 
 ```  
 
