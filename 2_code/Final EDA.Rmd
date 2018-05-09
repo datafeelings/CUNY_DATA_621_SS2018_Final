@@ -38,6 +38,7 @@ summaries = function(data,var){
 ```
 
 ```{r load full data, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+
 # Load the full data
 inp = read_csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/0_raw_data/bcn_listings.csv.gz")
 inp = data.frame(inp)
@@ -71,6 +72,7 @@ Price looks a bit skewed so we will use a log-transformation and see if our stat
 
 ```{r log price, echo=FALSE, message=FALSE, warning=FALSE}
 inp$price <- log(price)
+
 ```
 
 ```{r host_since, echo=FALSE, message=FALSE, warning=FALSE}
@@ -205,7 +207,9 @@ bar621(inp,
 
   
 #### Relationship to Price, Transformed Variable
+
 ```{r host_response_time_price_transf, echo=FALSE, message=FALSE, warning=FALSE}
+
 box621(inp, host_response_time, price)
 ```
 ### host_response_rate  
@@ -216,7 +220,9 @@ inp$host_response_rate <- as.numeric(str_replace(inp$host_response_rate, "%" ,""
   
 #### Distribution  
   
+
 ```{r host_response_rate_dist, echo=FALSE, message=FALSE, warning=FALSE}
+
 stats(data.frame(inp$host_response_rate))
 ```
   
@@ -232,13 +238,16 @@ boxcoxfit(inp$host_response_rate[!is.na(inp$host_response_rate)]+0.001)
   
 #### Relationship to Price  
   
+
 ```{r host_response_rate_price, echo=FALSE, message=FALSE, warning=FALSE}
+
 scat621(inp, host_response_rate^4, price)
 ```  
   
 #### Transformation  
 
 ```{r host_response_rate_trans, echo=FALSE, message=FALSE, warning=FALSE}
+
 # transform variable: indicate whether host has low or high response rates
 t <- c()
 
@@ -257,7 +266,9 @@ inp$host_response_rate <- factor(t)
 ```
   
 #### Bar Chart, Transformed Variable
+
 ```{r host_response_rate_trans_bar, echo=FALSE, message=FALSE, warning=FALSE}
+
 bar621(inp,
        reorder(host_response_rate, -table(host_response_rate)[host_response_rate]),
        xlab="host_response_rate",
@@ -268,6 +279,7 @@ bar621(inp,
 #### Relationship to price, Transformed Variable  
   
 ```{r host_response_rate_trans_price, echo=FALSE, message=FALSE, warning=FALSE}
+
 box621(inp, host_response_rate, log(price))
 ```
 
@@ -300,25 +312,32 @@ stats(data.frame(inp$host_listings_count))
   
 #### Histogram  
   
+
 ```{r host_listings_count_hist, echo=FALSE, message=FALSE, warning=FALSE}
+
 hist621(inp, host_listings_count)
 ```  
   
 #### Box Cox  
   
+
 ```{r host_listings_count_boxcox, echo=FALSE, message=FALSE, warning=FALSE}
+
 boxcoxfit(inp$host_listings_count[!is.na(inp$host_listings_count)]+0.001)
 ```  
   
 #### Relationship to Price  
-  
+
 ```{r host_listings_count_price, echo=FALSE, message=FALSE, warning=FALSE}
+
 scat621(inp,log(host_listings_count), price)
 ```  
   
 #### Transformation  
   
+
 ```{r host_listings_count_trans, echo=FALSE, message=FALSE, warning=FALSE}
+
 # convert host listings into 3 buckets
 #inp$host_listings_count <- ifelse(inp$host_listings_count < 4, " fewer than 4", 
 #       ifelse(inp$host_listings_count < 26, "between 4 and 25", "more than 25"))  
@@ -331,7 +350,9 @@ inp$host_listings_count <- with(inp, case_when(
 ```
   
 #### Bar Chart, Transformed Variable
+
 ```{r host_listings_count_trans_bar, echo=FALSE, message=FALSE, warning=FALSE}
+
 #bar621(inp, host_listings_count) + ylim(c(0,15000))
 
 bar621(inp,
@@ -344,6 +365,7 @@ bar621(inp,
 #### Relationship to Price, Transformed Variable  
   
 ```{r host_listings_count_trans_price, echo=FALSE, message=FALSE, warning=FALSE}
+
 box621(inp, reorder(host_listings_count, -table(host_listings_count)[host_listings_count]),log(price), title =
          "price vs. Transformed host_listings_count",
        xlab="Transformed host_listings_count")
@@ -378,6 +400,7 @@ inp$property_type <- factor(inp$property_type)
 #### Distribution  
   
 ```{r property_type dist, echo=FALSE, message=FALSE, warning=FALSE}
+
 sort(table(inp$property_type, useNA = "always"), decreasing = T)
 ```  
   
@@ -414,6 +437,7 @@ bar621(inp,property_type, title = "Transformed property_type by type") +
 #### Relationship with Price, Transformed Variable  
   
 ```{r property_type price box}
+
 box621(inp, property_type, price,
        title = "log(price) vs. Transformed property_type")
 ```
@@ -601,6 +625,7 @@ scat621(inp, log(extra_people),  price)
 impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee")]
 
 impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
+
 
 completeImpute <- complete(impute.data, 1)
 
@@ -796,6 +821,7 @@ We are fairly certain that there's a better way to do this, but looking at and o
 We'll first create a list with the amenities we want.
 
 ```{r top amenities filt, echo=FALSE, message=FALSE, warning=FALSE}
+
 top.amenities <- c("TV", "Cable TV", "Internet", "Wireless Internet", "Kitchen", "Air conditioning", "Smoking allowed", "Heating", "Washer", "Family kid friendly", "Essentials", "Elevator")
 ```
 
@@ -818,6 +844,7 @@ inp <-  inp %>%
 )
 
 # head(dplyr::select(inp, starts_with("amenities")))
+
 ```
 
 Now that we have each amenity as it's own variable, I'll convert each variable into a factor of two levels(TRUE and FALSE).
@@ -959,13 +986,17 @@ summaries(inp,review_scores_accuracy)
 
 
 ### review_scores_cleanliness
+
 ```{r review_scores_cleanliness_, message=FALSE, warning=FALSE}
+
 summaries(inp,review_scores_cleanliness)
 ``` 
 
 
 ### review_scores_checkin
+
 ```{r review_scores_checkin_, echo=FALSE, message=FALSE, warning=FALSE}
+
 summaries(inp,review_scores_checkin)
 ``` 
 
@@ -1014,7 +1045,9 @@ box621(GG.inp, review_scores_checkin, log(GG.inp$price),
   
 #### Distribution
   
+
 ```{r review_scores_communication_, echo=FALSE, message=FALSE, warning=FALSE}
+
 kable(stats(data.frame(inp$review_scores_communication)))
 ```
 
@@ -1111,6 +1144,7 @@ table(inp$review_scores_value, useNA = "always")
 
 
 ```{r review_scores_value bar, echo=FALSE, message=FALSE, warning=FALSE}
+
 tmp = "review_scores_value"
 
 bar621(inp, factor(review_scores_value),
@@ -1373,6 +1407,7 @@ box621(inp, neighbourhood_group_cleansed, price)
 
 
 
+
 ##Models
 
 ```{r split data, echo=FALSE, message=FALSE, warning=FALSE}
@@ -1386,4 +1421,5 @@ train <- sample(seq_len(nrow(inp)), size = smp_size)
 train_inp <- inp[train, ]
 test_inp <- inp[-train, ]
 ```
+
 
