@@ -38,7 +38,6 @@ summaries = function(data,var){
 ```
 
 ```{r load full data, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
-
 # Load the full data
 inp = read_csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/0_raw_data/bcn_listings.csv.gz")
 inp = data.frame(inp)
@@ -72,7 +71,6 @@ Price looks a bit skewed so we will use a log-transformation and see if our stat
 
 ```{r log price, echo=FALSE, message=FALSE, warning=FALSE}
 inp$price <- log(price)
-
 ```
 
 ```{r host_since, echo=FALSE, message=FALSE, warning=FALSE}
@@ -207,9 +205,7 @@ bar621(inp,
 
   
 #### Relationship to Price, Transformed Variable
-
 ```{r host_response_time_price_transf, echo=FALSE, message=FALSE, warning=FALSE}
-
 box621(inp, host_response_time, price)
 ```
 ### host_response_rate  
@@ -220,9 +216,7 @@ inp$host_response_rate <- as.numeric(str_replace(inp$host_response_rate, "%" ,""
   
 #### Distribution  
   
-
 ```{r host_response_rate_dist, echo=FALSE, message=FALSE, warning=FALSE}
-
 stats(data.frame(inp$host_response_rate))
 ```
   
@@ -238,16 +232,13 @@ boxcoxfit(inp$host_response_rate[!is.na(inp$host_response_rate)]+0.001)
   
 #### Relationship to Price  
   
-
 ```{r host_response_rate_price, echo=FALSE, message=FALSE, warning=FALSE}
-
 scat621(inp, host_response_rate^4, price)
 ```  
   
 #### Transformation  
 
 ```{r host_response_rate_trans, echo=FALSE, message=FALSE, warning=FALSE}
-
 # transform variable: indicate whether host has low or high response rates
 t <- c()
 
@@ -266,9 +257,7 @@ inp$host_response_rate <- factor(t)
 ```
   
 #### Bar Chart, Transformed Variable
-
 ```{r host_response_rate_trans_bar, echo=FALSE, message=FALSE, warning=FALSE}
-
 bar621(inp,
        reorder(host_response_rate, -table(host_response_rate)[host_response_rate]),
        xlab="host_response_rate",
@@ -279,7 +268,6 @@ bar621(inp,
 #### Relationship to price, Transformed Variable  
   
 ```{r host_response_rate_trans_price, echo=FALSE, message=FALSE, warning=FALSE}
-
 box621(inp, host_response_rate, log(price))
 ```
 
@@ -312,32 +300,25 @@ stats(data.frame(inp$host_listings_count))
   
 #### Histogram  
   
-
 ```{r host_listings_count_hist, echo=FALSE, message=FALSE, warning=FALSE}
-
 hist621(inp, host_listings_count)
 ```  
   
 #### Box Cox  
   
-
 ```{r host_listings_count_boxcox, echo=FALSE, message=FALSE, warning=FALSE}
-
 boxcoxfit(inp$host_listings_count[!is.na(inp$host_listings_count)]+0.001)
 ```  
   
 #### Relationship to Price  
-
+  
 ```{r host_listings_count_price, echo=FALSE, message=FALSE, warning=FALSE}
-
 scat621(inp,log(host_listings_count), price)
 ```  
   
 #### Transformation  
   
-
 ```{r host_listings_count_trans, echo=FALSE, message=FALSE, warning=FALSE}
-
 # convert host listings into 3 buckets
 #inp$host_listings_count <- ifelse(inp$host_listings_count < 4, " fewer than 4", 
 #       ifelse(inp$host_listings_count < 26, "between 4 and 25", "more than 25"))  
@@ -350,9 +331,7 @@ inp$host_listings_count <- with(inp, case_when(
 ```
   
 #### Bar Chart, Transformed Variable
-
 ```{r host_listings_count_trans_bar, echo=FALSE, message=FALSE, warning=FALSE}
-
 #bar621(inp, host_listings_count) + ylim(c(0,15000))
 
 bar621(inp,
@@ -365,7 +344,6 @@ bar621(inp,
 #### Relationship to Price, Transformed Variable  
   
 ```{r host_listings_count_trans_price, echo=FALSE, message=FALSE, warning=FALSE}
-
 box621(inp, reorder(host_listings_count, -table(host_listings_count)[host_listings_count]),log(price), title =
          "price vs. Transformed host_listings_count",
        xlab="Transformed host_listings_count")
@@ -400,7 +378,6 @@ inp$property_type <- factor(inp$property_type)
 #### Distribution  
   
 ```{r property_type dist, echo=FALSE, message=FALSE, warning=FALSE}
-
 sort(table(inp$property_type, useNA = "always"), decreasing = T)
 ```  
   
@@ -437,7 +414,6 @@ bar621(inp,property_type, title = "Transformed property_type by type") +
 #### Relationship with Price, Transformed Variable  
   
 ```{r property_type price box}
-
 box621(inp, property_type, price,
        title = "log(price) vs. Transformed property_type")
 ```
@@ -625,7 +601,6 @@ scat621(inp, log(extra_people),  price)
 impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee")]
 
 impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
-
 
 completeImpute <- complete(impute.data, 1)
 
@@ -821,7 +796,6 @@ We are fairly certain that there's a better way to do this, but looking at and o
 We'll first create a list with the amenities we want.
 
 ```{r top amenities filt, echo=FALSE, message=FALSE, warning=FALSE}
-
 top.amenities <- c("TV", "Cable TV", "Internet", "Wireless Internet", "Kitchen", "Air conditioning", "Smoking allowed", "Heating", "Washer", "Family kid friendly", "Essentials", "Elevator")
 ```
 
@@ -844,7 +818,6 @@ inp <-  inp %>%
 )
 
 # head(dplyr::select(inp, starts_with("amenities")))
-
 ```
 
 Now that we have each amenity as it's own variable, I'll convert each variable into a factor of two levels(TRUE and FALSE).
@@ -986,17 +959,13 @@ summaries(inp,review_scores_accuracy)
 
 
 ### review_scores_cleanliness
-
 ```{r review_scores_cleanliness_, message=FALSE, warning=FALSE}
-
 summaries(inp,review_scores_cleanliness)
 ``` 
 
 
 ### review_scores_checkin
-
 ```{r review_scores_checkin_, echo=FALSE, message=FALSE, warning=FALSE}
-
 summaries(inp,review_scores_checkin)
 ``` 
 
@@ -1045,20 +1014,20 @@ box621(GG.inp, review_scores_checkin, log(GG.inp$price),
   
 #### Distribution
   
-
-```{r review_scores_communication_, echo=FALSE, message=FALSE, warning=FALSE}
-
+```{r}
 kable(stats(data.frame(inp$review_scores_communication)))
 ```
 
 #### Relative frequency
 
-```{r review_scores_communication freq, echo=FALSE, message=FALSE, warning=FALSE}
-table(inp$review_scores_communication, useNA = "always")
+```{r}
+
+kable(t(table(inp$review_scores_communication, useNA = "always")))
+
 ```
 
 
-```{r review_scores_communication, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 tmp = "review_scores_communication"
 
 bar621(inp, factor(review_scores_communication),
@@ -1070,37 +1039,42 @@ bar621(inp, factor(review_scores_communication),
 
 All scores below 8 are merged into a single group.
   
-```{r reveiew_scores_communication trans, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_communication_bin = case_when(
+inp = inp %>% mutate(review_scores_communication = case_when(
   review_scores_communication <  8 ~ "< 8",
   review_scores_communication >=  8 ~ as.character(review_scores_communication))
-  ) 
+  ) %>% 
+  mutate(review_scores_communication = factor(review_scores_communication,exclude = NULL))
+
 ```
   
 #### Relationship to Price  
   
-```{r review_scores_communication price, echo=FALSE, message=FALSE, warning=FALSE}
-box621(inp, review_scores_communication_bin, price)
+```{r}
+box621(inp, review_scores_communication, log(price))
+
 ```  
 
 ### review_scores_location
   
 #### Distribution
   
-```{r review_scores_location dist, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 kable(stats(data.frame(inp$review_scores_location)))
 ```
 
 #### Relative frequency
 
-```{r review_scores_location, echo=FALSE, message=FALSE, warning=FALSE}
-table(inp$review_scores_communication, useNA = "always")
+```{r}
+
+kable(t(table(inp$review_scores_location, useNA = "always")))
+
 ```
 
 
-```{r review_scores_location bar}
+```{r}
 tmp = "review_scores_location"
 
 bar621(inp, factor(review_scores_location),
@@ -1112,39 +1086,41 @@ bar621(inp, factor(review_scores_location),
 
 All scores below 8 are merged into a single group.
   
-```{r review_scores_location trans, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_location_bin = case_when(
+inp = inp %>% mutate(review_scores_location = case_when(
   review_scores_location <  8 ~ "< 8",
   review_scores_location >=  8 ~ as.character(review_scores_location))
-  ) 
+  ) %>% 
+  mutate(review_scores_location = factor(review_scores_location,exclude = NULL))
 
 ```
   
 #### Relationship to Price  
   
-```{r review_scores_location price, echo=FALSE, message=FALSE, warning=FALSE}
-box621(inp, review_scores_location_bin, log(price))
+```{r}
+box621(inp, review_scores_location, log(price))
 ```  
 
 ### review_scores_value
   
 #### Distribution
   
-```{r review_scores_value, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 kable(stats(data.frame(inp$review_scores_value)))
 ```
 
 #### Relative frequency
 
-```{r review_scores_value freq, echo=FALSE, message=FALSE, warning=FALSE}
-table(inp$review_scores_value, useNA = "always")
+```{r}
+
+kable(t(table(inp$review_scores_value, useNA = "always")))
+
 ```
 
 
-```{r review_scores_value bar, echo=FALSE, message=FALSE, warning=FALSE}
-
+```{r}
 tmp = "review_scores_value"
 
 bar621(inp, factor(review_scores_value),
@@ -1156,19 +1132,22 @@ bar621(inp, factor(review_scores_value),
 
 All scores below 8 are merged into a single group.
   
-```{r review_scores_value trans, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(review_scores_value_bin = case_when(
+inp = inp %>% mutate(review_scores_value = case_when(
   review_scores_value <  8 ~ "< 8",
   review_scores_value >=  8 ~ as.character(review_scores_value))
-  ) 
+  ) %>% 
+  mutate(review_scores_value = factor(review_scores_value,exclude = NULL))
+
 ```
   
 #### Relationship to Price  
   
-```{r review_scores_value price, message=FALSE, warning=FALSE}
-box621(inp, review_scores_value_bin,price)
+```{r}
+box621(inp, review_scores_value, log(price))
+
 ``` 
 
 ### requires_license
@@ -1193,10 +1172,17 @@ tmp = "instant_bookable"
 bar621(df=inp, instant_bookable, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,11000))
 ```
 
+#### Transformation
+
+```{r}
+inp$instant_bookable = factor(inp$instant_bookable, exclude=F)
+```
+
+
 #### Relationship to Price  
   
 ```{r}
-box621(inp, instant_bookable,price)
+box621(inp, instant_bookable, log(price))
 
 ``` 
 
@@ -1217,10 +1203,19 @@ tmp = "is_business_travel_ready"
 bar621(df=inp, is_business_travel_ready, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
 
+#### Transformation
+
+The variable is transformed to a factor.
+
+```{r}
+inp$is_business_travel_ready = factor(inp$is_business_travel_ready, exclude=F)
+```
+
 #### Relationship to Price  
   
 ```{r}
-box621(inp, is_business_travel_ready, price)
+box621(inp, is_business_travel_ready, log(price))
+
 ``` 
 
 ### cancellation_policy
@@ -1251,15 +1246,18 @@ All scores below 8 are merged into a single group.
 ```{r}
 inp = as.tbl(inp)
 
-inp = inp %>% mutate(cancellation_policy_bin = ifelse(
+inp = inp %>% mutate(cancellation_policy = ifelse(
   grepl("strict", cancellation_policy, fixed = TRUE),  "strict", cancellation_policy)
-  ) 
+  ) %>% 
+  mutate(cancellation_policy = factor(cancellation_policy, exclude=NULL))
+
 ```
   
 #### Relationship to Price  
   
 ```{r}
-box621(inp, cancellation_policy_bin, price)
+box621(inp, cancellation_policy, log(price))
+
 ``` 
 
 
@@ -1280,10 +1278,16 @@ tmp = "require_guest_profile_picture"
 bar621(df=inp, require_guest_profile_picture, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
 
+#### Transformation
+
+```{r}
+inp$require_guest_profile_picture = factor(inp$require_guest_profile_picture, exclude=F)
+```
+
 #### Relationship to Price  
   
 ```{r}
-box621(inp, require_guest_profile_picture, price)
+box621(inp, require_guest_profile_picture, log(price))
 
 ``` 
 
@@ -1304,11 +1308,17 @@ kable(table(inp$require_guest_phone_verification,dnn = "require_guest_phone_veri
 tmp = "require_guest_phone_verification"
 bar621(df=inp, require_guest_phone_verification, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,19000))
 ```
+  
+#### Transformation
+
+```{r}
+inp$require_guest_phone_verification = factor(inp$require_guest_phone_verification, exclude=F)
+```
 
 #### Relationship to Price  
   
 ```{r}
-box621(inp, require_guest_phone_verification, price)
+box621(inp, require_guest_phone_verification, log(price))
 
 ```
 
@@ -1328,19 +1338,27 @@ tmp = "calculated_host_listings_count"
 hist621(df=inp, calculated_host_listings_count)
 ```
 
-#### Box-Cox  
+#### Transformation
+  
+As the check of the relationship with log(price) showed a non-linear link both for the raw values, and the Box-Cox values of `calculated_host_listings_count`, the variable was transformed to a factor with the following bins per value of calculated host listings: "1-2","3-10","11-50",">50".
+
   
 ```{r}
-boxcoxfit(inp$calculated_host_listings_count[!is.na(inp$calculated_host_listings_count)])
-
+inp = inp %>% mutate(calculated_host_listings_count_bin = case_when(
+  calculated_host_listings_count <  3 ~ "1-2",
+  calculated_host_listings_count <= 10 ~ "3-10",
+  calculated_host_listings_count <= 50 ~ "11-50",
+  calculated_host_listings_count > 50 ~ ">50")) %>% 
+  mutate(calculated_host_listings_count_bin = factor(calculated_host_listings_count_bin,exclude = NULL))
 ```
   
+
 #### Relationship to Price  
   
 ```{r}
-scat621(inp %>% sample_n(5000), calculated_host_listings_count^(-0.6), price)
-
-```  
+box621(inp,x = calculated_host_listings_count_bin, y =log(price))
+```
+  
 
 ### reviews_per_month
     
@@ -1363,13 +1381,26 @@ hist621(df=inp, reviews_per_month)
 boxcoxfit(inp$reviews_per_month[!is.na(inp$reviews_per_month)])
 
 ```
+
+#### Transformation
+
+As a check of the relationship with log(price) showed a non-linear link both for the raw values, and the Box-Cox values of `reviews_per_month`, the variable was transformed to a factor with the following bins per number of monthly reviews: "0-2","3-10",">10".
+
+```{r}
+inp = inp %>% mutate(reviews_per_month_bin = case_when(
+  reviews_per_month <  3 ~ "0-2",
+  reviews_per_month <= 10 ~ "3-10",
+  reviews_per_month > 10 ~ ">10")) %>% 
+  mutate(reviews_per_month_bin = factor(reviews_per_month_bin,exclude = NULL))
+```
+
   
 #### Relationship to Price  
   
 ```{r}
-scat621(inp %>% sample_n(5000), reviews_per_month^(0.2), price)
-
-```  
+box621(inp,reviews_per_month_bin, log(price))
+```
+  
 
 ### neighbourhood_cleansed
     
@@ -1402,9 +1433,26 @@ bar621(df=inp, neighbourhood_group_cleansed, xlab="", title=paste("Frequency of 
 #### Relationship to Price  
   
 ```{r}
-box621(inp, neighbourhood_group_cleansed, price)
+box621(inp, neighbourhood_group_cleansed, log(price))
+
 ```
 
+### zipcode
+    
+This is a factor with 98 levels for each zip code of a listing Barcelona. This variable will not be considered due to a very high number of dimensions it would produce in the model and the lack of observations per individual zip code.
+
+#### Distribution
+  
+```{r}
+str(data.frame(inp$zipcode))
+```
+
+
+```{r features_4, echo=FALSE, message=FALSE, warning=FALSE}
+
+features_4 = dplyr::select(inp, c(review_scores_communication, review_scores_location, review_scores_value,instant_bookable, is_business_travel_ready, cancellation_policy, require_guest_profile_picture, require_guest_phone_verification, calculated_host_listings_count, reviews_per_month, neighbourhood_group_cleansed))
+
+```
 
 
 
@@ -1421,5 +1469,4 @@ train <- sample(seq_len(nrow(inp)), size = smp_size)
 train_inp <- inp[train, ]
 test_inp <- inp[-train, ]
 ```
-
 
