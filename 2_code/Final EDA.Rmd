@@ -1430,6 +1430,12 @@ tmp = "neighbourhood_group_cleansed"
 bar621(df=inp, neighbourhood_group_cleansed, xlab="", title=paste("Frequency of levels of",tmp)) + ylim(c(0,10000))
 ```
 
+#### Transformation
+
+```{r}
+inp$neighbourhood_group_cleansed = factor(inp$neighbourhood_group_cleansed, exclude=F)
+```
+
 #### Relationship to Price  
   
 ```{r}
@@ -1450,23 +1456,65 @@ str(data.frame(inp$zipcode))
 
 ```{r features_4, echo=FALSE, message=FALSE, warning=FALSE}
 
-features_4 = dplyr::select(inp, c(review_scores_communication, review_scores_location, review_scores_value,instant_bookable, is_business_travel_ready, cancellation_policy, require_guest_profile_picture, require_guest_phone_verification, calculated_host_listings_count, reviews_per_month, neighbourhood_group_cleansed))
+# features_4 = dplyr::select(inp, c(review_scores_communication, review_scores_location, review_scores_value,instant_bookable, is_business_travel_ready, cancellation_policy, require_guest_profile_picture, require_guest_phone_verification, calculated_host_listings_count, reviews_per_month, neighbourhood_group_cleansed))
 
 ```
 
 
 
+#### Inspect the processed dataset
+
+```{r}
+# Temporarily here, would go up to each piece of EDA
+
+features_1 = dplyr::select(inp, c(host_since, host_response_time,host_response_rate,
+                                  host_is_superhost,host_listings_count, host_identity_verified,
+                                  property_type))
+
+features_2a = dplyr::select(inp, c(room_type,accommodates,bathrooms,bedrooms,beds,
+                                  price,security_deposit,cleaning_fee,guests_included,
+                                  extra_people))
+
+features_2b = dplyr::select(inp, starts_with("amenities_"))
+
+features_3 = dplyr::select(inp, c(minimum_nights, maximum_nights, availability_30, 
+                                  availability_60,availability_90,availability_365,
+                                  number_of_reviews,review_scores_rating,review_scores_accuracy,
+                                  review_scores_cleanliness,review_scores_checkin))
+
+features_4 = dplyr::select(inp, c(review_scores_communication, review_scores_location,
+                                  review_scores_value,instant_bookable, is_business_travel_ready,
+                                  cancellation_policy, require_guest_profile_picture,
+                                  require_guest_phone_verification, calculated_host_listings_count,
+                                  reviews_per_month, neighbourhood_group_cleansed))
+
+inp_proc = bind_cols(features_1, features_2a,features_2b, features_3,features_4)
+
+str(inp_proc)
+```
+
 ##Models
 
 ```{r split data, echo=FALSE, message=FALSE, warning=FALSE}
+
 ## 70% of the sample size
-smp_size <- floor(0.70 * nrow(inp))
+smp_size <- floor(0.70 * nrow(inp_proc))
 
 ## set the seed to make your partition reproducible
 set.seed(123)
-train <- sample(seq_len(nrow(inp)), size = smp_size)
+train <- sample(seq_len(nrow(inp_proc)), size = smp_size)
 
-train_inp <- inp[train, ]
-test_inp <- inp[-train, ]
+train_inp <- inp_proc[train, ]
+test_inp <- inp_proc[-train, ]
+
+```
+
+```{r}
+
+# Save the preprocessed datasets
+
+write_csv(train_inp, "train_inp.csv")
+write_csv(test_inp, "test_inp.csv")
+
 ```
 
