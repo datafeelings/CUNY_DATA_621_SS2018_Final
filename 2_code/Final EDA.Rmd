@@ -31,7 +31,7 @@ source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Fina
 summaries = function(data,var){
   a = stats(data.frame(var))                           #summary
   b = hist621(data, var)                               #histogram
-  c = scat621(data, var, log(price))                   #price vs variable
+  c = scat621(data, var, price)                   #price vs variable
   d = boxcoxfit(var[!is.na(var)] + 0.001)              #boxcox
   return(list(a,b,c,d))
 }
@@ -50,6 +50,7 @@ inp$price = as.numeric(gsub("\\$", "",inp$price))
 
 inp = subset(inp, select = -c(name,summary,space,description,neighborhood_overview,notes,transit,access,interaction,house_rules,host_id,id,listing_url,scrape_id,last_scraped,experiences_offered,thumbnail_url,medium_url,picture_url,xl_picture_url,host_url,host_name,host_location,host_acceptance_rate,host_thumbnail_url,host_picture_url,host_total_listings_count,host_has_profile_pic,street,neighbourhood,city,state,market,smart_location,country_code,country
 ,latitude,longitude,is_location_exact,square_feet,weekly_price,monthly_price,calendar_updated,has_availability,calendar_last_scraped,first_review,last_review,license,jurisdiction_names))
+#remove the variables that are apparently not influential in price. 
 
 kemi_inp = subset(inp, select = c(room_type, accommodates, bathrooms, bedrooms, beds, bed_type, amenities, price, security_deposit, cleaning_fee, guests_included, extra_people))
 
@@ -65,6 +66,7 @@ Now that we have our data subset, we will begin exploration of each variable. We
 ```{r price, echo=FALSE, message=FALSE, warning=FALSE}
 attach(inp)
 summaries(inp, price)
+summaries(inp, log(price))
 ```
 
 Price looks a bit skewed so we will use a log-transformation and see if our stats are better. The transformation greatly improved the stats so we went ahead and replaced the price column with log(price). Our price variable contains about 68 n/a  entries so we will have to impute later. 
@@ -419,15 +421,13 @@ box621(inp, property_type, price,
 ```
 
 
-The next predictive variable we will look at is 'room_type.' This variable is listed as character and we would like to convert to a factor. We see that Shared room have only 178 (1 percent) while the majority of the other entries are split between Entire home/apt and Private room. There are no missing entries in this variable. We also plotted the room_type by price. The output is below and it shows quite a bit of outliers.  
-
 ```{r room_type, echo=FALSE, message=FALSE, warning=FALSE}
 inp$room_type <- as.factor(inp$room_type)
 summary(inp$room_type)
 
 tmp = "room_type"
 
-bar621(inp, factor(room_type),
+bar621(inp, room_type,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -436,14 +436,14 @@ box621(inp, room_type, price)
 
 In terms of whether we should keep this variable or not, we would say yes. We would expect it to have a relationship with the price on the premise of if you're getting a full apartment, you will be expected to pay more that you would for a room in an apartment. 
 
-The next variable that we will look at is 'accommodates'. This variable tells us how many people each listing is suitable for. It is an integer value and we believe we can keep it as such. The plot for missing data above showed it had no missing values. We'll go ahead and obtain the summary stats. 
+The next variable that we will look at is 'accommodates'. This variable tells us how many people each listing is suitable for. It is an integer value and we believe we can keep it as such. The plot for missing data showed it had no missing values. We'll go ahead and obtain the summary stats. 
 
 ```{r accommadates, echo=FALSE, message=FALSE, warning=FALSE}
 kable(stats(data.frame(inp$accommodates)))
 
 tmp = "accommodates"
 
-bar621(inp, factor(accommodates),
+bar621(inp, accommodates,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -452,7 +452,7 @@ box621(inp, accommodates, price)
 scat621(inp, accommodates,  price)
 ```
 
-The minimum value for this variable is 1 and the max is 16. We have a mean of 3.324. We have a skewness of 1.77, which is not terrible. There are no NA's and about 210 entries are outliers. There does seem to be some sort of relationship so I think this variable is worth keeping. 
+The minimum value for this variable is 1 and the max is 16. We have a mean of 3.324. We have a skewness of 1.77, which is not terrible. There are no NA's and about 210 entries are outliers. I initially thought about removing the outliers or replacing them with a median level but I realized that it is very possible that there are Air BnB locations that are meant for large groups and that these entries are valid. There does seem to be some sort of relationship so I think this variable is worth keeping. 
 
 We can take a look at the 'bathrooms' variable next. This is a numerical variable as well. We'll do a summary to get the min, max, etc. 
 
@@ -461,7 +461,7 @@ kable(stats(data.frame(inp$bathrooms)))
 
 tmp = "bathrooms"
 
-bar621(inp, factor(bathrooms),
+bar621(inp, bathrooms,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -470,18 +470,18 @@ box621(inp, bathrooms, price)
 scat621(inp, bathrooms,  price)
 ```
 
-The minimum number for bathrooms is 0, which you would expect in cases where it's just a private room or a shared room. The max value is 8.5. For this variable, we have 33 NA's. We plan to use the MICE package to impute. The skewness is a bit high so we will likely need to transform. We will impute the data for all our variables with missing data at the same time. Once we impute, we will put back into our data frame. We got rid of the NA's but the data is still pretty skewed. I'll take the log of the bathrooms and see if those stats improve.
+The minimum number for bathrooms is 0, which you would expect in cases where it's just a private room or a shared room. The max value is 8.5. For this variable, we have 33 NA's. We plan to use the 'mice' package to impute. The skewness is a bit high so we will likely need to transform. We will impute the data for all our variables that contain  missing data at the same time. Once we impute, we will put back into our data frame. We got rid of the NA's but the data is still pretty skewed. I'll take the log of the bathrooms and see if those stats improve.
 
 The next variable we will be examining is bedrooms. We will do the same thing that we did for the above variables. 
 
-The min value for bedrooms is 0 which I find odd, unless 0 is used to indicate shared room. The max is 12 bedrooms and we have 10 rows with NA's. In this case, I would like to think that the 12 is an outlier. We will be imputing this variable later.  
+The min value for bedrooms is 0 which I find odd, unless 0 is used to indicate shared room. The max is 12 bedrooms and we have 10 rows with NA's. We will be imputing this variable later.  
 
 ```{r bedrooms, echo=FALSE, message=FALSE, warning=FALSE}
 kable(stats(data.frame(inp$bedrooms)))
 
 tmp = "bedrooms"
 
-bar621(inp, factor(bedrooms),
+bar621(inp, bedrooms,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -495,7 +495,7 @@ kable(stats(data.frame(inp$beds)))
 
 tmp = "beds"
 
-bar621(inp, factor(beds),
+bar621(inp, beds,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -512,7 +512,7 @@ kable(stats(data.frame(inp$security_deposit)))
 
 tmp = "security_deposit"
 
-bar621(inp, factor(security_deposit),
+bar621(inp, security_deposit,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -526,14 +526,14 @@ kable(stats(data.frame(log(inp$security_deposit))))
 
 tmp = "security_deposit"
 
-bar621(inp, factor(log(security_deposit)),
+bar621(inp, log(security_deposit),
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
 box621(inp, log(security_deposit), price)
 
 scat621(inp, log(security_deposit),  price)
-#log doesn't improve stats so we will not transform
+#log doesn't improve stats so we will not transform to log. 
 ```
 
 ```{r cleaning fee, echo=FALSE, message=FALSE, warning=FALSE}
@@ -567,6 +567,24 @@ scat621(inp, log(cleaning_fee),  price)
 #log doesn't improve stats so we will not transform
 ```
 
+```{r guests_included, echo=FALSE, message=FALSE, warning=FALSE}
+kable(stats(data.frame(inp$guests_included)))
+
+tmp = "guests_includes"
+
+bar621(inp, beds,
+       xlab=tmp,
+       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
+
+box621(inp, guests_included, price)
+
+scat621(inp, guests_included,  price)
+
+inp <- inp[,-24]
+```
+
+Guests included looks just like accommodates so we will remove. 
+
 ```{r extra people, echo=FALSE, message=FALSE, warning=FALSE}
 inp$extra_people <- as.numeric(gsub("\\$", "",inp$extra_people))
 kable(stats(data.frame(inp$extra_people)))
@@ -594,11 +612,13 @@ bar621(inp, factor(log(extra_people)),
 box621(inp, log(extra_people), price)
 
 scat621(inp, log(extra_people),  price)
-#log doesn't improve stats so we will not transform
+#log improves stats so we will  transform
+#
+inp$extra_people <- log(inp$extra_people)
 ```
 
 ```{r impute, echo=FALSE, message=FALSE, warning=FALSE}
-impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee")]
+impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee", "price")]
 
 impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
 
@@ -609,6 +629,7 @@ inp$bedrooms <- completeImpute$bedrooms
 inp$beds <- completeImpute$beds
 inp$security_deposit <- completeImpute$security_deposit
 inp$cleaning_fee <- completeImpute$cleaning_fee
+inp$price <- completeImpute$price
 ```
 
 Now, we'll check to see if the imputation improves our data stats. 
@@ -617,7 +638,7 @@ Now, we'll check to see if the imputation improves our data stats.
 kable(stats(data.frame(inp$bathrooms)))
 
 tmp = "bathrooms"
-bar621(inp, factor(bathrooms),
+bar621(inp, bathrooms,
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -629,7 +650,7 @@ kable(stats(data.frame(log(inp$bathrooms))))
 
 tmp = "bathrooms"
 
-bar621(inp, factor(log(bathrooms)),
+bar621(inp, log(bathrooms),
        xlab=tmp,
        title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
 
@@ -689,17 +710,21 @@ scat621(inp, log(beds),  price)
 ```
 
 
-Our next few variables are characters and we will be converting them to factors. The first variable is bed_type. As stated before, it's a factor containing 5 levels. 
+Our next few variables are characters and we will be converting them to factors. The first variable is bed_type. As stated before, it's a factor containing 5 levels. We will covert to a facto with two levels, Real Bed and not Real Bed.
 
 ```{r summary bedtype, echo=FALSE, message=FALSE, warning=FALSE}
 inp$bed_type <- as.factor(inp$bed_type)
 kable(summary(inp$bed_type))
+
+inp$bed_type <- factor(ifelse(inp$bed_type != "Real Bed", "Other", "Real Bed"))
+
+kable(summary(inp$bed_type))
 ```
 
-Looking at the summary output, the majority of the variables are Real Bed (18,322). The rest of the levels are negligible. We will not be moving forward with this variable, therefore we will remove the column.
+Looking at the summary output, the majority of the variables are Real Bed (18,322). Even with combining the rest of the types, it seems negligible. We will not be moving forward with this variable, therefore we will remove the column.
 
 ```{r remove bedtype, echo=FALSE, message=FALSE, warning=FALSE}
-inp <- inp[-6]
+inp <- inp[-19]
 ```
 
 Our next variable is amenities. This is also a factor with 16,284 levels. We can't simply convert to categorical because of this. We can try to count the top 10 amenities that occur, rank them and give a score for each on that a particular listing has.
@@ -834,6 +859,7 @@ inp$amenities_heating <- as.factor(inp$amenities_heating)
 inp$amenities_washer <- as.factor(inp$amenities_washer)
 inp$amenities_essentials <- as.factor(inp$amenities_essentials)
 inp$amenities_elevator <- as.factor(inp$amenities_elevator)
+#inp$amenities_FKF <- as.factor(inp$amenities_FKF) - remove because there's no variation
 ```
 
 Now, let look to see if we can find any correlation between the ammenities and price. 
@@ -871,38 +897,10 @@ box621(inp, amenities_essentials, price)
 kable(summary(inp$amenities_elevator))
 box621(inp, amenities_elevator, price)
 ```
+
 We will do the same for the rest of the amenities and see if we notice anything. 
 
-The next variable  that we are going to look at are guests_included. The guests included is a numerical variable that tells you how many additional guest are allowed. There's a fee associated with this variable so I see the price being affected by this variable. 
 
-```{r summary guest, echo=FALSE, message=FALSE, warning=FALSE}
-kable(stats(data.frame(inp$guests_included)))
-
-tmp = "guests_included"
-
-bar621(inp, factor(guests_included),
-       xlab=tmp,
-       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
-
-box621(inp, guests_included, price)
-
-scat621(inp, guests_included,  price)
-
-#check if log looks better
-#
-kable(stats(data.frame(log(inp$guests_included))))
-
-tmp = "guest_included"
-
-bar621(inp, factor(log(guests_included)),
-       xlab=tmp,
-       title=paste("Frequency of levels of",tmp)) + ylim(c(0,10050))
-
-box621(inp, log(guests_included), price)
-
-scat621(inp, log(guests_included),  price)
-#log does not improve stats so we will not replace in our inp dataset
-```
 
 ### minimum_nights
 ```{r minimum_nights, echo=FALSE, message=FALSE, warning=FALSE}
