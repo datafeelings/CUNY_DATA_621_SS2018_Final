@@ -907,10 +907,12 @@ We will do the same for the rest of the amenities and see if we notice anything.
 summaries(inp,minimum_nights)
 ```
 
+3 extreme outliers are removed.
 
 ### maximum_nights
 ```{r maximum_nights, echo=FALSE, message=FALSE, warning=FALSE}
 summaries(inp,maximum_nights)
+inp = subset(inp, maximum_nights != max(maximum_nights))
 ``` 
 
 
@@ -970,9 +972,10 @@ summaries(inp,review_scores_checkin)
 
 ## CHANGE VARIABLES TO CATEGORICAL
 ```{r change var to categorical, echo=FALSE, message=FALSE, warning=FALSE}
-GG.inp$review_scores_accuracy = recode(inp$review_scores_accuracy,"10='High'; 8:9='Mid'; 2:7='Low'")
-GG.inp$review_scores_cleanliness = recode(inp$review_scores_cleanliness,"10='High'; 8:9='Mid'; 2:7='Low'")
-GG.inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_accuracy = recode(inp$review_scores_accuracy,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_cleanliness = recode(inp$review_scores_cleanliness,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$availability_30 = recode(inp$availability_30,"0:10='Low'; 11:20='Mid'; 21:40='High'")
 ```
 
 
@@ -981,30 +984,39 @@ GG.inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9=
 
 ### review_scores_accuracy
 ```{r review_scores_accuracy trans, echo=FALSE, message=FALSE, warning=FALSE}
-bar621(GG.inp, review_scores_accuracy,
+bar621(inp, review_scores_accuracy,
        title="review_scores_accuracy by type",xlab="review_scores_accuracy")
 
-box621(GG.inp,review_scores_accuracy, log(GG.inp$price),
+box621(inp,review_scores_accuracy, log(inp$price),
        title = "log(price) vs. review_scores_accuracy", xlab="review_scores_accuracy")
 ```
 
 ### review_scores_cleanliness
 ```{r review_scores_cleanliness, echo=FALSE, message=FALSE, warning=FALSE}
-bar621(GG.inp, review_scores_cleanliness,
+bar621(inp, review_scores_cleanliness,
        title="review_scores_cleanliness by type",xlab="review_scores_cleanliness")
 
-box621(GG.inp, review_scores_cleanliness, log(GG.inp$price),
+box621(inp, review_scores_cleanliness, log(inp$price),
        title = "log(price) vs. review_scores_cleanliness", xlab="review_scores_cleanliness")
 ```
 
 
 ### review_scores_checkin
 ```{r review_scores_checkin, echo=FALSE, message=FALSE, warning=FALSE}
-bar621(GG.inp, review_scores_checkin,
+bar621(inp, review_scores_checkin,
        title="review_scores_checkin by type", xlab="review_scores_checkin")
 
-box621(GG.inp, review_scores_checkin, log(GG.inp$price),
+box621(inp, review_scores_checkin, log(inp$price),
        title = "log(price) vs. review_scores_checkin", xlab="review_scores_checkin")
+```
+
+### availability_30
+```{r}
+bar621(inp, availability_30,
+       title="availability_30 by type", xlab="availability_30")
+
+box621(inp, availability_30, log(inp$price),
+       title = "log(price) vs. availability_30", xlab="availability_30")
 ```
 
   
