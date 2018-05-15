@@ -1466,6 +1466,9 @@ str(inp_proc)
 
 ```{r split data, echo=FALSE, message=FALSE, warning=FALSE}
 
+# remove 67 NA records
+inp <- inp[!is.na(inp$host_since),]
+
 ## 70% of the sample size
 smp_size <- floor(0.70 * nrow(inp_proc))
 
