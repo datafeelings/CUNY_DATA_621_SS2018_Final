@@ -72,7 +72,7 @@ summary(gvlma(nocolumns))
 ```
 
 
-Removing the rows was the model that performed better, but it also has a lot of missing values. Looking into that to see why.
+Removing the rows was the model that performed better. But that also means that we will have to remove any NA values from the test set if we are to use it.
 ```{r}
 missmap(subset(test_inp, select = c(price, values, values2)))
 ```
