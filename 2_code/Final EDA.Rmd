@@ -622,7 +622,7 @@ impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "clea
 
 impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
 
-completeImpute <- complete(impute.data, 1)
+completeImpute <- mice::complete(impute.data, 1)
 
 inp$bathrooms <- completeImpute$bathrooms
 inp$bedrooms <- completeImpute$bedrooms
