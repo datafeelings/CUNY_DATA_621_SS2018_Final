@@ -1,0 +1,346 @@
+---
+title: "dv_Modeling_Iteration"
+author: "Dmitriy Vecheruk"
+date: "5/13/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Further data preparation
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(knitr)
+library(rmarkdown)
+library(DataExplorer)
+
+
+train_inp_raw = read.csv("train_inp.csv")
+```
+
+### 1. Handling NA values before modeling
+
+
+The 49 rows from the columns having a low number of NA values will be excluded
+```{r}
+train_inp = train_inp_raw[complete.cases(train_inp_raw$host_identity_verified),]
+```
+
+Regarding the variables showing 20%-21% of NA values two approaches can be used:
+1) Remove rows with missing observations
+2) Exclude these columns completely
+3) Recode NA as a separate factor level (cannot be done before binning `review_scores_rating` first!)
+
+```{r}
+plot_missing(train_inp)
+```
+
+```{r}
+summary(train_inp)
+```
+
+
+##### 1.1. Removing rows with NAs
+
+```{r}
+train_inp_1 = train_inp[complete.cases(train_inp),]
+```
+
+This results in a loss of 21% of data. 
+
+Test for multicollinearity requires us to remove one of the identical variables 
+`host_response_time`, `host_response_rate`. Removing `host_response_time`.
+
+```{r}
+train_inp_1 = train_inp_1 %>% 
+  dplyr::select(-host_response_time)
+```
+
+
+##### 1.2. Removing columns with NAs
+
+```{r}
+
+train_inp_2 = train_inp %>% dplyr::select(-starts_with("review_scores_")) %>%
+  dplyr::select(-host_response_time) %>% 
+  drop_na()
+```
+
+This results in a loss of 7 variables. 
+
+##### 1.3. Recoding NA as a separate factor
+
+**Cannot be done before binning `review_scores_rating` first!**
+
+```{r}
+
+# train_inp1 = as.tbl(train_inp)
+# train_inp1 = train_inp1 %>%
+#   mutate_at(vars(starts_with("review_")),as.character) %>% 
+#   mutate_at(vars(starts_with("review_")),function(x){ifelse(is.na(x),"unknown",x)}) %>% 
+#   mutate_at(vars(starts_with("review_")),as.factor) %>% 
+#   
+# 
+# 
+# summary(train_inp1)
+```
+
+
+
+## Modeling
+
+### Full Model 1: GLM on 44 Variables (4865 rows)
+ 
+```{r}
+# Set aside test data (set 20% aside)
+
+set.seed(123)
+tmp_index = createDataPartition(train_inp_1$price, p = 0.8, list = FALSE)
+train_inp_1_train = train_inp_1[ tmp_index, ]
+train_inp_1_test = train_inp_1[-tmp_index, ]
+
+fitControl = trainControl(## 5-fold CV
+                           method = "repeatedcv",
+                           number = 5,
+                           ## repeated ten times
+                           repeats = 10)
+
+```
+
+```{r outliers}
+outliers = c(9371, 8382, 122) # outliers from the chart
+influential = c(1768, 8970, 12246)
+observations_to_exclude=append(outliers, influential)
+m1_outlier_filter = which(rownames(train_inp_1_train) %in% observations_to_exclude)
+```
+
+```{r}
+# Train the full model
+m1 = glm(price ~ . , data = train_inp_1_train[-m1_outlier_filter,]) 
+```
+
+#### Model diagnostics
+  
+1) Formula
+
+```{r}
+m1$call
+```
+  
+
+2) Are (deviance) residuals normally distributed
+
+The residuals are almost normal, with only few extreme observations on both ends of the distribution.
+```{r}
+summary(m1$residuals)
+```
+
+```{r}
+plot(m1)
+```
+
+
+3) Is there a remaining pattern in the residuals  
+  
+The comparison with the fitted values does not show a clear remaining pattern.
+
+4) Are any observations highly influential on coefficients  
+
+Originally, several observations were found to be highly influential and were excluded from this model.
+* Outlier rows names: 9371, 8382, 122  
+* Influential observations row names: 1768, 8970, 12246  
+
+#### Move this part to the appendix
+
+```{r}
+# Source: http://r-statistics.co/Outlier-Treatment-With-R.html
+
+cooksd = cooks.distance(m1)
+plot(cooksd, pch=".", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>50*mean(cooksd, na.rm=T),names(cooksd),""), col="red")  # add labels
+```
+
+Seems like the outliers may have an issue with the minimum/maximum nights and availability columns?
+
+```{r}
+outliers = c(9371, 8382, 122) # outliers from the chart
+influential = c(1768, 8970, 12246)
+observations_to_exclude=append(outliers, influential)
+m1_outlier_filter = which(rownames(train_inp_1_train) %in% observations_to_exclude)
+```
+
+Row 9371 - a moderately priced listing with 8 rooms and 14(!) beds in an expensive neighborhood of Eixample that allows 1125 maximum nights, but also pretty high cleaning fee and security deposit
+Row 122 - an expensive listing with just 1 bed and 1 room and max. nights 1125, and just 3 reviews.
+
+
+#### Model coefficients and variable importance
+
+The model coefficients for the statistically significant predictors / factor levels at 95% conf. level are provided below in the order of importance to the model (increasing p-value).
+
+```{r}
+# library(devtools)
+# install_github("dgrtwo/broom")
+library(broom)
+
+# kable(tidy(m1))
+
+```
+
+
+```{r}
+# Function for variable importance
+library(dplyr)
+rank_var_imp = function(mod) {
+  tmp = summary(mod)
+  coefs_ = round(tmp$coefficients[,1],5)
+  test_stat_prob_ = round(tmp$coefficients[,4],5)
+  vars_ = names(coefs_)
+  
+  out = data_frame("Variable" = vars_,"Coefficient" = coefs_, "ConfLevel" = 1-test_stat_prob_) %>% 
+    filter(ConfLevel > 0.95) %>% arrange(desc(abs(Coefficient)))
+  
+  return(out)
+}
+
+kable(rank_var_imp(m1))
+```
+
+
+#### Model performance
+
+In-sample performance metrics are prodvided below
+
+```{r}
+kable(glance(m1))
+```
+
+The model explains 1-922.7289/3102.548 = 70.26% of variation of price in the training data.
+
+Model performance is evaluated on out-of-sample data using RMSE
+
+```{r}
+m1_pred = predict(m1,newdata = train_inp_1_test,type = "response")
+RMSE(pred = m1_pred, obs = train_inp_1_test$price,na.rm = T)
+
+```
+
+
+### Full Model 2: GLM on 37 Variables (4904 rows)
+ 
+```{r}
+# Set aside test data (set 20% aside)
+
+set.seed(123)
+tmp_index = createDataPartition(train_inp_2$price, p = 0.8, list = FALSE)
+train_inp_2_train = train_inp_2[ tmp_index, ]
+train_inp_2_test = train_inp_2[-tmp_index, ]
+
+```
+
+```{r}
+m2_outlier_filter = which(rownames(train_inp_2_train) %in% observations_to_exclude)
+```
+
+
+```{r}
+# Train the full model
+m2 = glm(price ~ . , data = train_inp_2_train[-m2_outlier_filter,]) 
+```
+
+#### Model diagnostics
+  
+1) Formula
+
+```{r}
+m2$call
+```
+  
+
+2) Are (deviance) residuals normally distributed
+
+The residuals are almost normal, with only few extreme observations on both ends of the distribution.
+```{r}
+summary(m2$residuals)
+```
+
+```{r}
+plot(m2)
+```
+
+
+3) Is there a remaining pattern in the residuals  
+  
+The comparison with the fitted values does not show a clear remaining pattern.
+
+4) Are any observations highly influential on coefficients  
+
+Originally, several observations were found to be highly influential and were excluded from this model.
+* Outlier rows names: 9371, 8382, 122  
+* Influential observations row names: 1768, 8970, 12246  
+
+#### Model coefficients and variable importance
+
+The model coefficients for the statistically significant predictors / factor levels at 95% conf. level are provided below in the order of importance to the model (increasing p-value).
+
+
+```{r}
+kable(rank_var_imp(m2))
+```
+
+
+#### Model performance
+
+In-sample performance metrics are prodvided below
+
+```{r}
+kable(glance(m2))
+```
+
+The model explains 1-976.3011/3141.092 =  68.9% of variation of price in the training data.
+
+Model performance is evaluated on out-of-sample data using RMSE
+
+```{r}
+m2_pred = predict(m2,newdata = train_inp_2_test,type = "response")
+RMSE(pred = m2_pred, obs = train_inp_2_test$price,na.rm = T)
+
+```
+
+
+
+
+
+### Appendix
+------ 
+##### Linear combinations of predictors
+
+
+- Found dummified factors producing linear combinations:  host_response_timeN/A host_response_rateN/A they are missing for same hosts, producing two identical factors. 
+
+
+*Removing the column "host_response_timeN/A" *
+
+```{r}
+# train_matrix = model.matrix(price ~ ., data = train_inp_1)
+# 
+# findLinearCombos(train_matrix)
+```
+
+```{r}
+# paste(dimnames(train_matrix)[[2]][3], dimnames(train_matrix)[[2]][6])
+
+```
+
+```{r}
+# train_inp = train_inp[train_inp$host_response_time!="N/A",]
+# train_inp$host_response_time = droplevels(train_inp$host_response_time)
+# train_inp$host_response_rate = droplevels(train_inp$host_response_rate)
+# str(train_inp$host_response_rate)
+```
