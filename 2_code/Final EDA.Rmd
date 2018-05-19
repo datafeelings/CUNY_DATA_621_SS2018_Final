@@ -973,8 +973,17 @@ summaries(inp,review_scores_checkin)
 ## CHANGE VARIABLES TO CATEGORICAL
 ```{r change var to categorical, echo=FALSE, message=FALSE, warning=FALSE}
 inp$review_scores_accuracy = recode(inp$review_scores_accuracy,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_accuracy = as.character(inp$review_scores_accuracy)
+inp$review_scores_accuracy[is.na(inp$review_scores_accuracy)] = "N/A"
+
 inp$review_scores_cleanliness = recode(inp$review_scores_cleanliness,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_cleanliness = as.character(inp$review_scores_cleanliness)
+inp$review_scores_cleanliness[is.na(inp$review_scores_cleanliness)] = "N/A"
+
 inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_checkin = as.character(inp$review_scores_checkin)
+inp$review_scores_checkin[is.na(inp$review_scores_checkin)] = "N/A"
+
 inp$availability_30 = recode(inp$availability_30,"0:10='Low'; 11:20='Mid'; 21:40='High'")
 ```
 
