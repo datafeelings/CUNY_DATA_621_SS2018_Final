@@ -1,0 +1,667 @@
+---
+title: "Final EDA"
+author: ""
+date: "5/7/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load packages, echo=FALSE, message=FALSE, warning=FALSE}
+# Load the required packages
+library(ggplot2)
+library(e1071)
+library(dplyr)
+library(plyr)
+library(readr)
+library(boot)
+library(car)
+library(knitr)
+library(MASS)
+# library(PerformanceAnalytics)
+library(geoR)
+library(stringr)
+library(mice)
+
+# Load the stats and vis functions
+source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/Graphical_Functions.R")
+source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/stats_function.R")
+
+# summaries = function(data,var){
+#   a = stats(data.frame(var))                           #summary
+#   b = hist621(data, var)                               #histogram
+#   c = scat621(data, var, price)                   #price vs variable
+#   d = boxcoxfit(var[!is.na(var)] + 0.001)              #boxcox
+#   return(list(a,b,c,d))
+# }
+```
+
+```{r load full data, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+# Load the full data
+inp = read_csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/0_raw_data/bcn_listings.csv.gz")
+inp = data.frame(inp)
+```
+
+Now that we have loaded our full data, we will subset it so it is easier to handle for EDA. Before we subset, we will make some changes to the price variable. This variable is listed as a character variable because of the dollar sign and we cannot gather a lot of information from that. We will remove the dollar sign before we subset for streamlining purposes. There are also columns that we know for certain will not be of value to our exploration so we will remove them now. 
+
+```{r subset, echo=FALSE, message=FALSE, warning=FALSE}
+inp$price = as.numeric(gsub("\\$", "",inp$price))
+
+inp = subset(inp, select = -c(name,summary,space,description,neighborhood_overview,notes,transit,access,interaction,house_rules,host_id,id,listing_url,scrape_id,last_scraped,experiences_offered,thumbnail_url,medium_url,picture_url,xl_picture_url,host_url,host_name,host_location,host_acceptance_rate,host_thumbnail_url,host_picture_url,host_total_listings_count,host_has_profile_pic,street,neighbourhood,city,state,market,smart_location,country_code,country
+,latitude,longitude,is_location_exact,square_feet,weekly_price,monthly_price,calendar_updated,has_availability,calendar_last_scraped,first_review,last_review,license,jurisdiction_names))
+
+#remove the variables that are apparently not influential in price. 
+
+kemi_inp = subset(inp, select = c(room_type, accommodates, bathrooms, bedrooms, beds, bed_type, amenities, price, security_deposit, cleaning_fee, guests_included, extra_people))
+
+GG.inp = subset(inp, select = c(price, minimum_nights,maximum_nights,availability_30,availability_60,
+                                  availability_90,availability_365,number_of_reviews,review_scores_rating,
+                                  review_scores_accuracy,review_scores_cleanliness,review_scores_checkin))
+
+DM.inp = subset(inp, select = c(price,review_scores_communication,review_scores_location,review_scores_value,requires_license,instant_bookable,is_business_travel_ready,cancellation_policy,require_guest_profile_picture,require_guest_phone_verification,calculated_host_listings_count,reviews_per_month,neighbourhood_cleansed,zipcode,neighbourhood_group_cleansed))
+```
+
+Now that we have our data subset, we will begin exploration of each variable. We'll look at price first as that is our target variable. Although price is listed as a 'character', it's simply because of the dollar signs. We will remove the dollar signs and save this variable as a numerical variable.
+
+```{r price, echo=FALSE, message=FALSE, warning=FALSE}
+attach(inp)
+# summaries(inp, price)
+# summaries(inp, log(price))
+```
+
+Price looks a bit skewed so we will use a log-transformation and see if our stats are better. The transformation greatly improved the stats so we went ahead and replaced the price column with log(price). Our price variable contains about 68 n/a  entries so we will have to impute later. 
+
+```{r log price, echo=FALSE, message=FALSE, warning=FALSE}
+inp$price <- log(price)
+```
+
+```{r host_since, echo=FALSE, message=FALSE, warning=FALSE}
+# convert to date; then convert to number of years since minimum date in data set
+inp$host_since <- as.Date(inp$host_since)
+inp$host_since <- as.numeric(inp$host_since - min(inp$host_since, na.rm=T)) / 365.25
+```  
+  
+  
+#### Transformation  
+  
+```{r host_since trans, echo=FALSE, message=FALSE, warning=FALSE}
+# based on box-cox, apply x^1.2 trans
+inp$host_since <- inp$host_since^1.2
+```
+  
+
+  
+### host_about  
+  
+```{r host_about, message=FALSE, warning=FALSE}
+# convert to length
+inp$host_about <- nchar(inp$host_about)
+inp$host_about[is.na(inp$host_about)] <- 0
+```  
+  
+
+  
+#### Transformation  
+  
+```{r transformation, message=FALSE, warning=FALSE}
+# new dummy indicating if raw host_about field as zero length 
+inp$host_about_zero <- ifelse(inp$host_about == 0,1,0)
+
+# transform original host_about variable by taking log(1+x)
+inp$host_about <- log(inp$host_about + 1)
+```
+  
+
+### host_response_time  
+  
+#### Distribution  
+```{r host_response_time hist, echo=FALSE, message=FALSE, warning=FALSE}
+inp$host_response_time <- factor(inp$host_response_time)
+
+table(inp$host_response_time, useNA = "always")
+```
+  
+
+### Transformation  
+  
+```{r host_response_time, message=FALSE, warning=FALSE}
+# rebin/collapse categories
+inp$host_response_time <- factor(str_replace_all(inp$host_response_time,
+                "within a few hours|within an hour",
+                "within a day"))
+```  
+  
+
+### host_response_rate  
+  
+```{r host_response_rate, echo=FALSE, message=FALSE, warning=FALSE}
+inp$host_response_rate <- as.numeric(str_replace(inp$host_response_rate, "%" ,""))/100
+```  
+  
+  
+#### Transformation  
+
+```{r host_response_rate_trans, echo=FALSE, message=FALSE, warning=FALSE}
+# transform variable: indicate whether host has low or high response rates
+t <- c()
+
+for (i in inp$host_response_rate) {
+  if (is.na(i)) {
+    t <- c(t, "N/A")
+  } else if(i < 0.97) { 
+      t <- c(t, "Low")
+  } else {
+    t <- c(t,"High")
+  }
+}
+
+
+inp$host_response_rate <- factor(t)
+```
+  
+
+### host_is_superhost  
+
+  
+### host_listings_count  
+  
+  
+#### Transformation  
+  
+```{r host_listings_count_trans, echo=FALSE, message=FALSE, warning=FALSE}
+# convert host listings into 3 buckets
+#inp$host_listings_count <- ifelse(inp$host_listings_count < 4, " fewer than 4", 
+#       ifelse(inp$host_listings_count < 26, "between 4 and 25", "more than 25"))  
+inp$host_listings_count <- with(inp, case_when(
+    host_listings_count <  3 ~ "1-2",
+    host_listings_count <= 10 ~ "3-10",
+    host_listings_count <= 50 ~ "11-50",
+    host_listings_count > 50 ~ ">50")) %>%
+  factor()
+```
+  
+
+### host_identity_verified  
+  
+  
+### property_type  
+  
+  
+#### Transformation  
+  
+```{r property_type trans, echo=FALSE, message=FALSE, warning=FALSE}
+# bin into two categories: "Apartment" and "Other" given vast majority of listings are apartments
+inp$property_type <- factor(ifelse(inp$property_type != "Apartment", "Other", "Apartment"))
+```  
+  
+### accommodates
+
+### bathrooms
+  
+### bedrooms
+
+### beds 
+
+### security_deposit
+
+```{r security deposit, echo=FALSE, message=FALSE, warning=FALSE}
+inp$security_deposit <- as.numeric(gsub("\\$", "",inp$security_deposit))
+```
+
+### cleaning_fee
+```{r cleaning fee, echo=FALSE, message=FALSE, warning=FALSE}
+inp$cleaning_fee <- as.numeric(gsub("\\$", "",inp$cleaning_fee))
+```
+
+### guests_included
+```{r guests_included, echo=FALSE, message=FALSE, warning=FALSE}
+
+inp <- inp[,-24]
+```
+
+
+### extra_people
+
+```{r extra people, echo=FALSE, message=FALSE, warning=FALSE}
+inp$extra_people <- as.numeric(gsub("\\$", "",inp$extra_people))
+inp$extra_people <- log(inp$extra_people)
+```
+
+### imputation
+
+```{r impute, echo=FALSE, message=FALSE, warning=FALSE}
+impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee", "price")]
+
+impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
+
+completeImpute <- complete(impute.data, 1)
+
+inp$bathrooms <- completeImpute$bathrooms
+inp$bedrooms <- completeImpute$bedrooms
+inp$beds <- completeImpute$beds
+inp$security_deposit <- completeImpute$security_deposit
+inp$cleaning_fee <- completeImpute$cleaning_fee
+inp$price <- completeImpute$price
+```
+
+
+
+### bed_type
+
+Our next few variables are characters and we will be converting them to factors. The first variable is bed_type. As stated before, it's a factor containing 5 levels. We will covert to a facto with two levels, Real Bed and not Real Bed.
+
+```{r summary bedtype, echo=FALSE, message=FALSE, warning=FALSE}
+# inp$bed_type <- as.factor(inp$bed_type)
+
+inp$bed_type <- factor(ifelse(inp$bed_type != "Real Bed", "Other", "Real Bed"))
+
+```
+
+Looking at the summary output, the majority of the variables are Real Bed (18,322). Even with combining the rest of the types, it seems negligible. We will not be moving forward with this variable, therefore we will remove the column.
+
+```{r remove bedtype, echo=FALSE, message=FALSE, warning=FALSE}
+inp <- inp[-19]
+```
+
+### amenities
+
+```{r split amenities, echo=FALSE, message=FALSE, warning=FALSE}
+amenities <- data.frame (do.call('rbind', strsplit(as.character(inp$amenities), ',', fixed = TRUE)))
+
+amenities$X1 <- str_replace_all(amenities$X1, "[^[:alnum:]]", " ") 
+amenities$X2 <- str_replace_all(amenities$X2, "[^[:alnum:]]", " ")
+amenities$X3 <- str_replace_all(amenities$X3, "[^[:alnum:]]", " ")
+amenities$X4 <- str_replace_all(amenities$X4, "[^[:alnum:]]", " ")
+amenities$X5 <- str_replace_all(amenities$X5, "[^[:alnum:]]", " ")
+amenities$X6 <- str_replace_all(amenities$X6, "[^[:alnum:]]", " ")
+amenities$X7 <- str_replace_all(amenities$X7, "[^[:alnum:]]", " ")
+amenities$X8 <- str_replace_all(amenities$X8, "[^[:alnum:]]", " ")
+amenities$X9 <- str_replace_all(amenities$X9, "[^[:alnum:]]", " ")
+amenities$X10 <- str_replace_all(amenities$X10, "[^[:alnum:]]", " ")
+amenities$X11 <- str_replace_all(amenities$X11, "[^[:alnum:]]", " ")
+```
+
+Now that we have split our columns and removed special characters, we'll place back in our data frame and we can number of unique enteries in each column to determine which occur most. 
+
+```{r place back, echo=FALSE, message=FALSE, warning=FALSE}
+inp$amenities1 <- amenities$X1
+inp$amenities2 <- amenities$X2
+inp$amenities3 <- amenities$X3
+inp$amenities4 <- amenities$X4
+inp$amenities5 <- amenities$X5
+inp$amenities6 <- amenities$X6
+inp$amenities7 <- amenities$X7
+inp$amenities8 <- amenities$X8
+inp$amenities9 <- amenities$X9
+inp$amenities10 <- amenities$X10
+```
+
+```{r top amenities, echo=FALSE, message=FALSE, warning=FALSE}
+TOP.1 <- inp$amenities1
+TOP.1 <- table(TOP.1)
+TOP.1 <- sort(TOP.1, decreasing = TRUE)
+TOP.1 <- head(TOP.1, n = 10)
+
+TOP.2 <- inp$amenities2
+TOP.2 <- table(TOP.2)
+TOP.2 <- sort(TOP.2, decreasing = TRUE)
+TOP.2 <- head(TOP.2, n = 10)
+
+TOP.3 <- inp$amenities3
+TOP.3 <- table(TOP.3)
+TOP.3 <- sort(TOP.3, decreasing = TRUE)
+TOP.3 <- head(TOP.3, n = 10)
+
+TOP.4 <- inp$amenities4
+TOP.4 <- table(TOP.4)
+TOP.4 <- sort(TOP.4, decreasing = TRUE)
+TOP.4 <- head(TOP.4, n = 10)
+
+TOP.5 <- inp$amenities5
+TOP.5 <- table(TOP.5)
+TOP.5 <- sort(TOP.5, decreasing = TRUE)
+TOP.5 <- head(TOP.5, n = 10)
+
+TOP.6 <- inp$amenities6
+TOP.6 <- table(TOP.6)
+TOP.6 <- sort(TOP.6, decreasing = TRUE)
+TOP.6 <- head(TOP.6, n = 10)
+
+TOP.7 <- inp$amenities7
+TOP.7 <- table(TOP.7)
+TOP.7 <- sort(TOP.7, decreasing = TRUE)
+TOP.7 <- head(TOP.7, n = 10)
+
+TOP.8 <- inp$amenities8
+TOP.8 <- table(TOP.8)
+TOP.8 <- sort(TOP.8, decreasing = TRUE)
+TOP.8 <- head(TOP.8, n = 10)
+
+TOP.9 <- inp$amenities9
+TOP.9 <- table(TOP.9)
+TOP.9 <- sort(TOP.9, decreasing = TRUE)
+TOP.9 <- head(TOP.9, n = 10)
+
+TOP.10 <-inp$amenities10
+TOP.10 <- table(TOP.10)
+TOP.10 <- sort(TOP.10, decreasing = TRUE)
+TOP.10 <- head(TOP.10, n = 10)
+
+TOP <- data.frame(TOP.1, TOP.2, TOP.3, TOP.4, TOP.5, TOP.6, TOP.7, TOP.8, TOP.9, TOP.10)
+```
+
+We are fairly certain that there's a better way to do this, but looking at and ordering the above, we found that the most occuring are TV/Cable TV, internet/wireless internet, kitchen, air conditioning, smoking allowed, elevator, heating, washer, family/kid friendly, and essentials. Now, we'd like to go back to my original data and count the occurences of these top 10 in each entry. 
+
+We'll first create a list with the amenities we want.
+
+```{r top amenities filt, echo=FALSE, message=FALSE, warning=FALSE}
+top.amenities <- c("TV", "Cable TV", "Internet", "Wireless Internet", "Kitchen", "Air conditioning", "Smoking allowed", "Heating", "Washer", "Family kid friendly", "Essentials", "Elevator")
+```
+
+```{r total amenities, echo=FALSE, message=FALSE, warning=FALSE}
+# Scan for selected amenties, make binary column if yes
+inp <-  inp %>% 
+  mutate(amenities_tv =  grepl("TV", amenities, fixed = TRUE),
+         amenities_cable = grepl("Cable TV", amenities, fixed = TRUE),
+         amenities_wifi =  grepl("Wireless Internet", amenities, fixed = TRUE),
+         amenities_internet =  grepl("Internet", amenities, fixed = TRUE),
+         amenities_kitchen = grepl("Kitchen", amenities, fixed = TRUE),
+         amenities_ac = grepl("Air conditioning", amenities, fixed = TRUE),
+         amenities_smoking = grepl("Smoking allowed", amenities, fixed = TRUE),
+         amenities_heating = grepl("Heating", amenities, fixed = TRUE),
+         amenities_washer = grepl("Washer", amenities, fixed = TRUE),
+         amenities_FKF = grepl("Family kid friendly", amenities, fixed = TRUE),
+         amenities_essentials = grepl("Essentials", amenities, fixed = TRUE),
+         amenities_elevator = grepl("Elevator", amenities, fixed = TRUE)
+
+)
+
+# head(dplyr::select(inp, starts_with("amenities")))
+```
+
+Now that we have each amenity as it's own variable, I'll convert each variable into a factor of two levels(TRUE and FALSE).
+
+```{r amenities into factor, echo=FALSE, message=FALSE, warning=FALSE}
+inp$amenities_tv <- as.factor(inp$amenities_tv)
+inp$amenities_cable <- as.factor(inp$amenities_cable)
+inp$amenities_wifi <- as.factor(inp$amenities_wifi)
+inp$amenities_internet <- as.factor(inp$amenities_internet)
+inp$amenities_kitchen <- as.factor(inp$amenities_kitchen)
+inp$amenities_ac <- as.factor(inp$amenities_ac)
+inp$amenities_smoking <- as.factor(inp$amenities_smoking)
+inp$amenities_heating <- as.factor(inp$amenities_heating)
+inp$amenities_washer <- as.factor(inp$amenities_washer)
+inp$amenities_essentials <- as.factor(inp$amenities_essentials)
+inp$amenities_elevator <- as.factor(inp$amenities_elevator)
+#inp$amenities_FKF <- as.factor(inp$amenities_FKF) - remove because there's no variation
+```
+
+
+### minimum_nights
+```{r minimum_nights, echo=FALSE, message=FALSE, warning=FALSE}
+# summaries(inp,minimum_nights)
+```
+
+3 extreme outliers are removed.
+
+### maximum_nights
+```{r maximum_nights, echo=FALSE, message=FALSE, warning=FALSE}
+# summaries(inp,maximum_nights)
+inp = subset(inp, maximum_nights != max(maximum_nights))
+``` 
+
+
+
+
+
+## CHANGE VARIABLES TO CATEGORICAL
+```{r change var to categorical, echo=FALSE, message=FALSE, warning=FALSE}
+inp$review_scores_accuracy = recode(inp$review_scores_accuracy,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_cleanliness = recode(inp$review_scores_cleanliness,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$availability_30 = recode(inp$availability_30,"0:10='Low'; 11:20='Mid'; 21:40='High'")
+```
+
+
+
+# Transformed Variables
+
+
+  
+### review_scores_communication
+  
+
+#### Transformation
+
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_communication = case_when(
+  review_scores_communication <  8 ~ "< 8",
+  review_scores_communication >=  8 ~ as.character(review_scores_communication))
+  ) %>% 
+  mutate(review_scores_communication = factor(review_scores_communication,exclude = NULL))
+
+```
+  
+
+
+### review_scores_location
+  
+
+
+#### Transformation
+
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_location = case_when(
+  review_scores_location <  8 ~ "< 8",
+  review_scores_location >=  8 ~ as.character(review_scores_location))
+  ) %>% 
+  mutate(review_scores_location = factor(review_scores_location,exclude = NULL))
+
+```
+  
+
+### review_scores_value
+  
+
+#### Transformation
+
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(review_scores_value = case_when(
+  review_scores_value <  8 ~ "< 8",
+  review_scores_value >=  8 ~ as.character(review_scores_value))
+  ) %>% 
+  mutate(review_scores_value = factor(review_scores_value,exclude = NULL))
+
+```
+  
+### requires_license
+
+Variable excluded as all observations have the same value.
+  
+  
+### instant_bookable
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+
+#### Transformation
+
+```{r}
+inp$instant_bookable = factor(inp$instant_bookable, exclude=F)
+```
+
+
+### is_business_travel_ready
+    
+This is a factor with two levels: true ("t") and false ("f")
+
+
+#### Transformation
+
+The variable is transformed to a factor.
+
+```{r}
+inp$is_business_travel_ready = factor(inp$is_business_travel_ready, exclude=F)
+```
+
+
+### cancellation_policy
+    
+This is a factor with five levels corresponding to cancellation policy types.
+  
+
+#### Transformation
+
+All scores below 8 are merged into a single group.
+  
+```{r}
+inp = as.tbl(inp)
+
+inp = inp %>% mutate(cancellation_policy = ifelse(
+  grepl("strict", cancellation_policy, fixed = TRUE),  "strict", cancellation_policy)
+  ) %>% 
+  mutate(cancellation_policy = factor(cancellation_policy, exclude=NULL))
+
+```
+  
+
+### require_guest_profile_picture
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+
+#### Transformation
+
+```{r}
+inp$require_guest_profile_picture = factor(inp$require_guest_profile_picture, exclude=F)
+```
+
+
+### require_guest_phone_verification
+    
+This is a factor with two levels: true ("t") and false ("f")
+  
+  
+#### Transformation
+
+```{r}
+inp$require_guest_phone_verification = factor(inp$require_guest_phone_verification, exclude=F)
+```
+
+
+### calculated_host_listings_count
+  
+This variable duplicates the `host_listings_count` variable and is excluded from the analysis.
+  
+
+### reviews_per_month
+    
+
+#### Transformation
+
+As a check of the relationship with log(price) showed a non-linear link both for the raw values, and the Box-Cox values of `reviews_per_month`, the variable was transformed to a factor with the following bins per number of monthly reviews: "0-2","3-10",">10".
+
+```{r}
+inp = inp %>% mutate(reviews_per_month_bin = case_when(
+  reviews_per_month <  3 ~ "0-2",
+  reviews_per_month <= 10 ~ "3-10",
+  reviews_per_month > 10 ~ ">10")) %>% 
+  mutate(reviews_per_month_bin = factor(reviews_per_month_bin,exclude = NULL))
+```
+
+  
+
+### neighbourhood_cleansed
+    
+This is a factor with two 72 levels correspondent to the neighborhoods of Barcelona. Will not be considered further as data on districts the neighborhoods belong to is available (see below).
+  
+  
+
+### neighbourhood_group_cleansed
+    
+This is a factor with ten levels correspondent to the ten districts of the city (location of the listing).
+
+
+#### Transformation
+
+```{r}
+inp$neighbourhood_group_cleansed = factor(inp$neighbourhood_group_cleansed, exclude=F)
+```
+
+
+### zipcode
+    
+This is a factor with 98 levels for each zip code of a listing Barcelona. This variable will not be considered due to a very high number of dimensions it would produce in the model and the lack of observations per individual zip code.
+
+
+
+#### Inspect the processed dataset
+
+```{r}
+# Temporarily here, would go up to each piece of EDA
+variable_subset = c(
+  "host_since","host_response_time","host_response_rate","host_is_superhost",
+  "host_listings_count","host_identity_verified","property_type"
+  
+  ,"room_type","accommodates","bathrooms","bedrooms","beds","price","security_deposit",
+  "cleaning_fee","extra_people"
+   
+  ,"amenities_tv","amenities_cable","amenities_wifi","amenities_internet",
+  "amenities_kitchen","amenities_ac","amenities_smoking","amenities_heating",
+  "amenities_washer","amenities_essentials","amenities_elevator"
+  
+  ,"minimum_nights","maximum_nights","availability_30","number_of_reviews",
+  "review_scores_rating","review_scores_accuracy","review_scores_cleanliness",
+  "review_scores_checkin"
+  
+  ,"review_scores_communication","review_scores_location","review_scores_value",
+  "instant_bookable","is_business_travel_ready","cancellation_policy",
+  "require_guest_profile_picture","require_guest_phone_verification",
+  "reviews_per_month","neighbourhood_group_cleansed"
+ )
+
+inp_proc = inp[,variable_subset]
+str(inp_proc)
+```
+
+
+##Models
+
+```{r split data, echo=FALSE, message=FALSE, warning=FALSE}
+
+## 70% of the sample size
+smp_size <- floor(0.70 * nrow(inp_proc))
+
+## set the seed to make your partition reproducible
+set.seed(123)
+train <- sample(seq_len(nrow(inp_proc)), size = smp_size)
+
+
+train_inp <- inp_proc[train, ]
+test_inp <- inp_proc[-train, ]
+
+```
+
+```{r}
+
+# Save the preprocessed datasets
+
+write_csv(train_inp, "train_inp.csv")
+write_csv(test_inp, "test_inp.csv")
+
+```
+
