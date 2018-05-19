@@ -1,0 +1,78 @@
+---
+title: "Models"
+author: "Georgia Galanopoulos"
+date: "May 25, 2018"
+output: html_document
+---
+
+```{r}
+library(Amelia)
+library(MASS)
+library(pROC)
+library(Metrics)
+library(car)
+library(gvlma)
+
+train_inp = read.csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/train_inp.csv", header = T)
+test_inp = read.csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/test_inp.csv", header = T)
+```
+
+Selecting only the variables that are significant (classified as 2).
+```{r}
+two = train_inp[ , -which(names(train_inp) %in% c("host_response_rate","host_is_superhost","host_identity_verified",
+                                                "room_type","accommodates","beds","extra_people","review_scores_communication",
+                                                "review_scores_location","review_scores_value","instant_bookable",
+                                                "require_guest_profile_picture", "reviews_per_month", "maximum_nights"))]
+```
+
+To determine handling NA values in review_scores variables, we take two approaches: remove NA values or remove the variables themselves.
+
+
+# Remove NA rows
+```{r}
+#####################################
+############ MODEL 1 ################
+#####################################
+#### Remove NA rows
+subr = subset(two, !is.na(review_scores_rating)&!is.na(review_scores_accuracy)&!is.na(review_scores_cleanliness)&!is.na(review_scores_checkin))
+norows = stepAIC(lm(price~ ., data=subr), direction = "both")
+summary(norows)
+
+test_inp$values = predict(norows, test_inp)
+#plot(multiclass.roc(test_inp$price, test_inp$values), print.auc = TRUE)
+
+qqPlot(norows, main="Residuals QQ Plot")
+hist(studres(norows), main="Distribution of Studentized Residuals")
+vif(norows)
+spreadLevelPlot(norows)
+summary(gvlma(norows))
+```
+
+
+# Remove Columns
+```{r}
+#####################################
+############ MODEL 2 ################
+#####################################
+#### Remove review columns
+subc = two[ , -which(names(two) %in% c("review_scores_rating", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_checkin"))]
+nocolumns = stepAIC(lm(price~., data=subc), direction = "both")
+summary(nocolumns)
+rmse_noc = sqrt(mean((nocolumns$residuals)^2))
+
+test_inp$values2 = predict(nocolumns, test_inp)
+#plot(multiclass.roc(test_inp$price, test_inp$values2), print.auc = TRUE)
+
+
+qqPlot(nocolumns, main="Residuals QQ Plot")
+hist(studres(nocolumns), main="Distribution of Studentized Residuals")
+vif(nocolumns)
+spreadLevelPlot(nocolumns)
+summary(gvlma(nocolumns))
+```
+
+
+Removing the rows was the model that performed better, but it also has a lot of missing values. Looking into that to see why.
+```{r}
+missmap(subset(test_inp, select = c(price, values, values2)))
+```
