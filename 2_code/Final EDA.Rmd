@@ -1066,7 +1066,9 @@ inp = inp %>% mutate(review_scores_communication = case_when(
   review_scores_communication >=  8 ~ as.character(review_scores_communication))
   ) %>% 
   mutate(review_scores_communication = factor(review_scores_communication,exclude = NULL))
-
+  
+inp$review_scores_communication = as.character(inp$review_scores_communication)
+inp$review_scores_communication[is.na(inp$review_scores_communication)] = "N/A"
 ```
   
 #### Relationship to Price  
@@ -1114,6 +1116,9 @@ inp = inp %>% mutate(review_scores_location = case_when(
   ) %>% 
   mutate(review_scores_location = factor(review_scores_location,exclude = NULL))
 
+inp$review_scores_location = as.character(inp$review_scores_location)
+inp$review_scores_location[is.na(inp$review_scores_location)] = "N/A"
+
 ```
   
 #### Relationship to Price  
@@ -1159,6 +1164,9 @@ inp = inp %>% mutate(review_scores_value = case_when(
   review_scores_value >=  8 ~ as.character(review_scores_value))
   ) %>% 
   mutate(review_scores_value = factor(review_scores_value,exclude = NULL))
+  
+inp$review_scores_value = as.character(inp$review_scores_value)
+inp$review_scores_value[is.na(inp$review_scores_value)] = "N/A"
 
 ```
   
