@@ -402,8 +402,17 @@ inp = subset(inp, maximum_nights != max(maximum_nights))
 ## CHANGE VARIABLES TO CATEGORICAL
 ```{r change var to categorical, echo=FALSE, message=FALSE, warning=FALSE}
 inp$review_scores_accuracy = recode(inp$review_scores_accuracy,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_accuracy = as.character(inp$review_scores_accuracy)
+inp$review_scores_accuracy[is.na(inp$review_scores_accuracy)] = "N/A"
+
 inp$review_scores_cleanliness = recode(inp$review_scores_cleanliness,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_cleanliness = as.character(inp$review_scores_cleanliness)
+inp$review_scores_cleanliness[is.na(inp$review_scores_cleanliness)] = "N/A"
+
 inp$review_scores_checkin = recode(inp$review_scores_checkin,"10='High'; 8:9='Mid'; 2:7='Low'")
+inp$review_scores_checkin = as.character(inp$review_scores_checkin)
+inp$review_scores_checkin[is.na(inp$review_scores_checkin)] = "N/A"
+
 inp$availability_30 = recode(inp$availability_30,"0:10='Low'; 11:20='Mid'; 21:40='High'")
 ```
 
@@ -429,6 +438,8 @@ inp = inp %>% mutate(review_scores_communication = case_when(
   ) %>% 
   mutate(review_scores_communication = factor(review_scores_communication,exclude = NULL))
 
+inp$review_scores_communication = as.character(inp$review_scores_communication)
+inp$review_scores_communication[is.na(inp$review_scores_communication)] = "N/A"
 ```
   
 
@@ -450,6 +461,8 @@ inp = inp %>% mutate(review_scores_location = case_when(
   ) %>% 
   mutate(review_scores_location = factor(review_scores_location,exclude = NULL))
 
+inp$review_scores_location = as.character(inp$review_scores_location)
+inp$review_scores_location[is.na(inp$review_scores_location)] = "N/A"
 ```
   
 
@@ -469,6 +482,8 @@ inp = inp %>% mutate(review_scores_value = case_when(
   ) %>% 
   mutate(review_scores_value = factor(review_scores_value,exclude = NULL))
 
+inp$review_scores_value = as.character(inp$review_scores_value)
+inp$review_scores_value[is.na(inp$review_scores_value)] = "N/A"
 ```
   
 ### requires_license
@@ -618,9 +633,11 @@ inp$reviews_per_month <- completeImpute$reviews_per_month
 #### Inspect the processed dataset
 
 ```{r}
-# Temporarily here, would go up to each piece of EDA
+# Final selection of variables to output
+# Kicked out host_response_rate due to being identical in NAs to host_response_time
+
 variable_subset = c(
-  "host_since","host_response_time","host_response_rate","host_is_superhost",
+  "host_since","host_response_time","host_is_superhost","maximum_nights",
   "host_listings_count","host_identity_verified","property_type"
   
   ,"room_type","accommodates","bathrooms","bedrooms","beds","price","security_deposit",
@@ -630,7 +647,7 @@ variable_subset = c(
   "amenities_kitchen","amenities_ac","amenities_smoking","amenities_heating",
   "amenities_washer","amenities_essentials","amenities_elevator"
   
-  ,"minimum_nights","maximum_nights","availability_30","number_of_reviews",
+  ,"minimum_nights","availability_30","number_of_reviews",
   "review_scores_rating","review_scores_accuracy","review_scores_cleanliness",
   "review_scores_checkin"
   
@@ -666,8 +683,11 @@ test_inp <- inp_proc[-train, ]
 
 # Save the preprocessed datasets
 
-write_csv(train_inp, "train_imputed_scores.csv")
-write_csv(test_inp, "test_imputed_scores.csv")
+# write_csv(train_inp, "train_imputed_scores.csv")
+# write_csv(test_inp, "test_imputed_scores.csv")
+
+write_csv(train_inp, "train_inp.csv")
+write_csv(test_inp, "test_inp.csv")
 
 ```
 
