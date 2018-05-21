@@ -50,7 +50,7 @@ box621 <- function(df, x, y, xlab="", ylab="", title="") {
 }
 
 # barplot function
-bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
+bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5, fntsize=5) {
   x1 <- eval(substitute(x),df, parent.frame()) 
   xlab_default <- deparse(substitute(x)) # default x label if argument left blank
   title_default <- paste(xlab_default, "by type")  # default title if argument left blank
@@ -65,7 +65,7 @@ bar621 <- function(df,x,xlab="",title="", vadj=-0.5, hadj=0.5) {
               position = position_dodge(.9),
               vjust=vadj,
               hjust=hadj,
-              size = 5,
+              size = fntsize,
               color = 'darkred')
  
 }
