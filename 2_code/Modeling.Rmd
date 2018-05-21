@@ -1,0 +1,75 @@
+---
+title: "Modeling"
+author: "Dmitriy Vecheruk"
+date: "5/21/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Modeling
+
+This section covers the predictive modeling of listing prices based on the cleaned 
+and transformed dataset prepared in the course of the exploratory analysis.
+
+We are building four different models with increasing complexity regarding the number 
+of predictors and degrees of freedom:  
+1) An *intutive linear regression model* using only the subset of variables for that our 
+common sense assumptions about the relationship with price were confirmed by the exploratory analysis 
+(e.g. listing location, room type);  
+2) A *stepwise-selected linear regression model* that applies automated variable
+selection approach and may include non-obvious or weaker predictors that are still
+important for predicting the price;  
+3) A *full GLM model* that uses all the variables that had at least some relationship
+with the price;  
+4) A *full Gradient Boosting Machine (GBM) model* that also uses the same variables as 
+the model above, but is more flexible regarding variable interactions than a regression 
+model.
+  
+The for each of the four models, the following steps are taken:  
+1) Model definition and building;  
+2) Diagnostics;  
+3) Analysis of model coefficients and variable importance;  
+4) Evaluation of model in-sample performance.  
+
+Afterwards, all four models are compared on out-of-sample data in order to exclude
+the effects of overfitting when evaluating prediction quality.
+
+Finally, we provide an interpretation of the most important predictors of the price
+based on the learnings from comparing the model coefficients.
+
+
+### Intutive Linear Regression Model
+
+#### Model definition (which variables, describe approach)
+
+#### Model Diagnostics (distribution of residuals), for regression, cover the following:
+
+Are (deviance) residuals normally distributed
+Is there a remaining pattern in the residuals
+Are any observations highly influential on coefficients
+
+#### Variable importance and coefficients 
+(comment on p.value, the sign and magnitude) 
+
+#### Model in-sample performance
+In-sample performance: RMSE, Adj. Rsq / explained variance, AIC
+
+Order of models
+1) Intuitive: Kemi
+2) Stepwise: Dmitriy
+3) Full model GLM: Dmitriy
+4) Full model GBM: Kemi
+Sections per model
+1) Model definition (which variables, describe approach)
+2) Diagnostics (distribution of residuals), for regression, cover the following:
+Are (deviance) residuals normally distributed
+Is there a remaining pattern in the residuals
+Are any observations highly influential on coefficients
+3) Model coefficients (comment on the sign and magnitude) and variable importance
+5) Model performance
+In-sample performance: RMSE, Adj. Rsq / explained variance, AIC
+Out-of-sample performance on inp_test, metrics: RMSE
+
