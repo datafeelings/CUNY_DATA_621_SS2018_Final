@@ -212,6 +212,21 @@ rank_var_imp = function(mod) {
 kable(rank_var_imp(m1))
 ```
 
+#### Interpretation of coefficients
+
+Based on the statistical significance and coefficient magnitude, the ten most important predictors of price are (in descending order):
+  
+1) room_type (shared / private room reduce the price)  
+2) neighbourhood_group_cleansed (in all neighborhood groups the price is reduced vs. the old town district of Ciutat Vella)  
+3) amenities_internet (if TRUE increased price)  
+4) host_response_rate (if N/A  increased price) **??**   
+5) amenities_ac (if TRUE increades the price)  
+6) host_listings_count ("1-2","3-10","11-50" all reduce the price vs ???)  
+7) host_is_superhost (t +)  
+8) availability_30(Low +)  
+9) review_scores_value10 (negative ??)  
+10) require_guest_phone_verification (t negative ??)  
+
 
 #### Model performance
 
@@ -309,7 +324,7 @@ Model performance is evaluated on out-of-sample data using RMSE
 
 ```{r}
 m2_pred = predict(m2,newdata = train_inp_2_test,type = "response")
-RMSE(pred = m2_pred, obs = train_inp_2_test$price,na.rm = T)
+print(RMSE(pred = m2_pred, obs = train_inp_2_test$price,na.rm = T))
 
 ```
 

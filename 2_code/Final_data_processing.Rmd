@@ -223,30 +223,13 @@ inp <- inp[,-24]
 
 
 ### extra_people
+  
+#### Transformation  
 
 ```{r extra people, echo=FALSE, message=FALSE, warning=FALSE}
 inp$extra_people <- as.numeric(gsub("\\$", "",inp$extra_people))
 inp$extra_people <- log(1+inp$extra_people)
 ```
-
-### imputation
-
-```{r impute, echo=FALSE, message=FALSE, warning=FALSE}
-impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee", "price","review_scores_rating")]
-
-impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
-
-completeImpute <- complete(impute.data, 1)
-
-inp$bathrooms <- completeImpute$bathrooms
-inp$bedrooms <- completeImpute$bedrooms
-inp$beds <- completeImpute$beds
-inp$security_deposit <- completeImpute$security_deposit
-inp$cleaning_fee <- completeImpute$cleaning_fee
-inp$price <- completeImpute$price
-```
-
-
 
 ### bed_type
 
@@ -608,6 +591,29 @@ inp$neighbourhood_group_cleansed = factor(inp$neighbourhood_group_cleansed, excl
 This is a factor with 98 levels for each zip code of a listing Barcelona. This variable will not be considered due to a very high number of dimensions it would produce in the model and the lack of observations per individual zip code.
 
 
+## imputation
+
+```{r impute, echo=FALSE, message=FALSE, warning=FALSE}
+impute.data <- inp[,c("bathrooms", "bedrooms", "beds", "security_deposit", "cleaning_fee", "price","review_scores_rating","reviews_per_month")]
+
+impute.data <- mice(impute.data, m = 5, maxit = 10, meth = 'pmm', seed = 500)
+
+completeImpute <- complete(impute.data, 1)
+
+inp$bathrooms <- completeImpute$bathrooms
+inp$bedrooms <- completeImpute$bedrooms
+inp$beds <- completeImpute$beds
+inp$security_deposit <- completeImpute$security_deposit
+inp$cleaning_fee <- completeImpute$cleaning_fee
+inp$price <- completeImpute$price
+
+# Imputing numeric review scores
+
+inp$review_scores_rating <- completeImpute$review_scores_rating
+inp$reviews_per_month <- completeImpute$reviews_per_month
+
+```
+
 
 #### Inspect the processed dataset
 
@@ -639,7 +645,7 @@ str(inp_proc)
 ```
 
 
-##Models
+## Sample for Modeling
 
 ```{r split data, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -660,8 +666,8 @@ test_inp <- inp_proc[-train, ]
 
 # Save the preprocessed datasets
 
-write_csv(train_inp, "train_inp.csv")
-write_csv(test_inp, "test_inp.csv")
+write_csv(train_inp, "train_imputed_scores.csv")
+write_csv(test_inp, "test_imputed_scores.csv")
 
 ```
 
