@@ -10,7 +10,9 @@ stats = function (dataframe) {
   Kurtosis = sapply(dataframe, function(x) {round(kurtosis(x, na.rm=TRUE),2)})
   NA_Count = sapply(dataframe, function(x) {sum(length(which(is.na(x))))})
   Percent_NA = sapply(dataframe, function(x) {round(sum(length(which(is.na(x))))/length(x)*100, 2)})
-  Outliers_Count = sapply(dataframe, function(x) {round(length(which(x>mean(x)+ 3*sd(x) | x<mean(x)- 3*sd(x))),2)})
-  Percent_Outliers = sapply(dataframe, function(x) {round(length(which(x>mean(x)+ 3*sd(x) | x<mean(x)- 3*sd(x))) / length(x),2)*100})
+  Outliers_Count = sapply(dataframe, function(x) {round(length(which(x>mean(x, na.rm=TRUE)+ 3*sd(x, na.rm=TRUE) | 
+                                                                     x<mean(x,na.rm=TRUE )-3*sd(x, na.rm=TRUE))),2)})
+  Percent_Outliers = sapply(dataframe, function(x) {round(length(which(x>mean(x, na.rm=TRUE)+ 3*sd(x, na.rm=TRUE) | 
+                                                                       x<mean(x, na.rm=TRUE)- 3*sd(x, na.rm=TRUE))) / length(x),2)*100})
   return(cbind(Min, Max, Mean, Median, St.dev, Skew, Kurtosis, NA_Count, Percent_NA, Outliers_Count, Percent_Outliers))
 }
