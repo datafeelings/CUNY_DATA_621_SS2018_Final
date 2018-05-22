@@ -1,0 +1,551 @@
+---
+title: "Modeling"
+author: ""
+date: "5/21/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Modeling
+
+This section covers the predictive modeling of listing prices based on the cleaned 
+and transformed dataset prepared in the course of the exploratory analysis.
+
+We are building four different models with increasing complexity regarding the number of predictors and degrees of freedom:  
+1) An *intutive linear regression model* using only the subset of variables for that our common sense assumptions about the relationship with price were confirmed by the exploratory analysis (e.g. listing location, room type);  
+2) A *stepwise-selected linear regression model* that applies automated variable
+selection approach and may include non-obvious or weaker predictors that are still
+important for predicting the price;  
+3) A *full GLM model* that uses all the variables that had at least some relationship
+with the price;  
+4) A *full Gradient Boosting Machine (GBM) model* that also uses the same variables as the model above, but is more flexible regarding variable interactions than a regression 
+model.
+  
+The for each of the four models, the following steps are taken:  
+1) Model definition and building;  
+2) Diagnostics;  
+3) Analysis of model coefficients and variable importance;  
+4) Evaluation of model in-sample performance.  
+
+Afterwards, all four models are compared on out-of-sample data in order to exclude
+the effects of overfitting when evaluating prediction quality.
+
+Finally, we provide an interpretation of the most important predictors of the price
+based on the learnings from comparing the model coefficients.
+
+```{r libraries_functions}
+# Load libraries and custom functions
+library(car)
+library(broom)
+library(DataExplorer)
+library(knitr)
+library(Amelia)
+library(MASS)
+library(pROC)
+library(Metrics)
+library(car)
+library(gvlma)
+library(gbm)
+
+# Function for variable importance
+library(dplyr)
+rank_var_imp = function(mod) {
+  tmp = summary(mod)
+  coefs_ = round(tmp$coefficients[,1],5)
+  test_stat_prob_ = round(tmp$coefficients[,4],5)
+  vars_ = names(coefs_)
+  
+  out = data_frame("Variable" = vars_,"Coefficient" = coefs_, "ConfLevel" = 1-test_stat_prob_) %>% 
+    filter(ConfLevel > 0.95) %>% arrange(desc(abs(Coefficient)))
+  
+  return(out)
+}
+
+# Functions for model performance
+
+# mean absolute error function 
+MAE <- function(preds, actl) {
+  mean(abs(preds - actl))
+}
+
+# root mean square function
+RMSE <- function(preds, actl) {
+  sqrt(mean((preds - actl)^2))
+}
+
+# R squared 
+RSq <- function(preds, actl){
+  1 - sum((preds - actl)^2) / sum((actl - mean(actl))^2)
+}
+
+# mean absolute percentage error
+MAPE <- function(preds, actl){
+  mean(abs((preds - actl)/actl))
+}
+
+provide_performance = function(preds, actl){
+  
+  return(list(MAE=round(MAE(preds, actl),3), 
+              MAPE=round(MAPE(preds, actl),3),
+              RMSE=round(RMSE(preds, actl),3),
+              RSq=round(RSq(preds, actl),3)
+              ))
+}
+
+```
+
+
+```{r}
+# Read the training and test data and make sure there are no NAs in both
+train <- read.csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/33b866c7e7aeb7ad44a27037a295f5bfe633f7bc/2_code/test_inp.csv", stringsAsFactors = T)
+test <- read.csv("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/33b866c7e7aeb7ad44a27037a295f5bfe633f7bc/2_code/train_inp.csv", stringsAsFactors = T)
+
+train = train[complete.cases(train),]
+test = test[complete.cases(test),]
+```
+
+
+```{r}
+# fact_vars <- which(sapply(train_mod, is.factor))
+# summary(train[, fact_vars])
+```
+
+
+```{r}
+# Relevel the factors to the common baseline levels
+
+train = within(train, {
+  host_response_time = relevel(host_response_time,ref="a few days or more")
+  # host_response_rate = relevel(host_response_rate,ref="Low")
+  host_is_superhost = relevel(host_is_superhost,ref="f")
+  host_listings_count = relevel(host_listings_count,ref="1-2")
+  host_identity_verified = relevel(host_identity_verified,ref="f")
+  property_type = relevel(property_type,ref="Apartment")
+  room_type = relevel(room_type,ref="Shared room")
+  availability_30 = relevel(availability_30,ref="Low")
+  review_scores_accuracy = relevel(review_scores_accuracy,ref="Low")
+  review_scores_cleanliness = relevel(review_scores_cleanliness,ref="Low")
+  review_scores_checkin = relevel(review_scores_checkin,ref="Low")
+  review_scores_communication = relevel(review_scores_communication,ref="< 8")
+  review_scores_location = relevel(review_scores_location,ref="< 8")
+  review_scores_value = relevel(review_scores_value,ref="< 8")
+  instant_bookable = relevel(instant_bookable,ref="f")
+  is_business_travel_ready = relevel(is_business_travel_ready,ref="f")
+  cancellation_policy = relevel(cancellation_policy,ref="flexible")
+  require_guest_profile_picture = relevel(require_guest_profile_picture,ref="f")
+  require_guest_phone_verification = relevel(require_guest_phone_verification,ref="f")
+  neighbourhood_group_cleansed = relevel(neighbourhood_group_cleansed,ref="Ciutat Vella")
+})
+
+```
+
+
+
+### 1. Intuitive Linear Regression Model (Kemi)
+  
+#### 1.1. Model definition  
+  
+For the first model we worked one, we went with an intuitive linear regression model. A linear regression model tries to approximate the relationship between dependent and independent variables in a straight line by using statistical calculations to plot a trend line in a set of data points.
+
+When we did our EDA, we ranked the variables from 0-2, 0 indicating the variable is of no importance and can be removed and 2 indicating that it is of high importance. When we created this intuitive model, we went with all the variables that we ranked 2. Our first step is to subset our training data to include only those variables. Once we subset our data, we wanted to see which path would yield more fruitful; removing NA rows or columns. We'll model both and compare them to each other to determine which path we should follow. 
+
+```{r echo=FALSE}
+two = train[ , -which(names(train) %in% c("host_response_rate","host_is_superhost","host_identity_verified",
+ "room_type","accommodates","beds","extra_people","review_scores_communication",
+ "review_scores_location","review_scores_value","instant_bookable", "require_guest_profile_picture", "reviews_per_month", "maximum_nights"))]
+
+subr = subset(two, !is.na(review_scores_rating)&!is.na(review_scores_accuracy)&!is.na(review_scores_cleanliness)&!is.na(review_scores_checkin)) #remove NA rows
+
+int_model = lm(price ~., data = subr)
+```
+
+```{r}
+subc = two[ , -which(names(two) %in% c("review_scores_rating", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_checkin"))] #remove review columns
+
+int_model2 = lm(price~., data = subc)
+```
+
+Next, we evaluated collinearity with the 'vif' fuction. The variables with (generalized) variance inflation factors are shown in descending order. All the values are below 5 so the factor variables can be disregarded. 
+```{r}
+vifs = data.frame(vif(int_model))
+names(vifs) = c("GVIF","Df","GVIF_corrected")
+attach(vifs)
+high_vifs <- vifs[order(-GVIF), ] 
+kable(high_vifs, row.names = T)
+detach(vifs)
+
+par(mfrow = c(2,2))
+plot(int_model)
+```
+
+```{r}
+vifs_c = data.frame(vif(int_model2))
+names(vifs_c) = c("GVIF","Df","GVIF_corrected")
+attach(vifs_c)
+high_vifs_c <- vifs_c[order(-GVIF), ] 
+kable(high_vifs_c, row.names = T)
+detach(vifs_c)
+
+par(mfrow = c(2,2))
+plot(int_model2)
+```
+The QQ-Plot falls mostly on a straight line, with the ends curving. This implies that our data may have more extreme values that we expected from the normal distribution that is indicated by the histogram.  
+
+#### 1.2. Model Diagnostics  
+
+```{r}
+summary(int_model)
+plot(int_model, which =  4, cook.levels = cutoff)
+rmse_nor = sqrt(mean((int_model$residuals)^2)) #0.542415
+test$values = predict(int_model, test)
+```
+Looking at the residuals of 'int_model', we see that they are symmetric about the mean(0). Very few of the variables are not significant. 
+```{r}
+summary(int_model2)
+plot(int_model2, which =  4, cook.levels = cutoff)
+rmse_noc = sqrt(mean((int_model2$residuals)^2)) #0.5458898
+test$values2 = predict(int_model2, test)
+```
+Let's look at the summary for this model, focusing on the residuals first. We are checking for a symmetrical distribution across the residual summary points on the mean(0). From the values displayed, we see that there is a relatively symmetric distribution. We should also note that many of the variables are highly significant, indicated by three astericks. About 56% of our variance can be explained by our variables and our F-statistic is relatively larger than 1 given the size of our data. 
+
+#### 1.3. Variable importance and coefficients  
+Below is the model coefficients for the predictors/factor levels that are statistically significant are listed below. 
+
+```{r}
+kable(rank_var_imp(int_model))
+```
+
+```{r}
+kable(rank_var_imp(int_model2))
+```
+
+
+#### 1.4. Model in-sample performance  
+Now we will summarize the in-sample performance of the models 
+
+```{r}
+kable(glance(int_model))
+```
+
+```{r}
+kable(glance(int_model2))
+```
+
+We have one model that explains 56% of variance and another that explains 57% of the variance .   
+
+### 2. Stepwise-selected Regression Model (Dima)
+  
+#### 2.1. Model definition  
+  
+The stepwise approach to model selection is an automated iterative process that tries 
+adding and removing one of the predictors, and measures the resulting model's AIC. Then, the model that is minimizing the information loss versus the full model is selected as a result of this procedure.
+  
+```{r}
+train_mod = train
+
+# run stepwise function, both directions
+null.model <- lm(price ~ 1, data = train_mod)
+full.model <- lm(price ~ ., data = train_mod)
+
+step_model <- step(full.model, scope =list(lower = null.model, upper = full.model),
+                   direction = 'both', trace=0, steps=100)
+
+```
+
+We have applied the stepwise selection approach in both directions: forward - adding predictors to a null model, as well backward - removing predictors from a full model. The resulting converged model excludes the following 10 predictors as unimportant:
+
+
+```{r}
+excluded_predictors = data.frame(step_model$anova[1])
+names(excluded_predictors)="excluded_predictors"
+kable(excluded_predictors)
+```
+
+However, after checking the variance inflation factors in the resulting model, we have found additional predictors that are likely not relevant.
+
+**Variance inflation and multicollinearity [CHECK/CORRECT THE COMMENTS HERE!!]**
+  
+In addition, we checking if any variables in the stepwise-selected model contribute to variance inflation due to multicollinearity. The variables with (generalized) variance inflation factors over 5.0 are summarized in the table below.
+  
+```{r}
+###### Check variance inflation factors #######################
+step_vifs = data.frame(vif(step_model))
+names(step_vifs) = c("GVIF","Df","GVIF_corrected")
+high_vifs = step_vifs[step_vifs$GVIF>5,]
+kable(high_vifs[order(high_vifs$GVIF,decreasing = T), ],row.names = T)
+```
+
+We can see that the factor variables can be disregarded as their corrected variance inflation estimate is below 5 (GVIF^(1/2*Df)). However, the following variables with just one degree of freedom are contributing to variance inflation: `amenities_internet`, `amenities_wifi`, `accommodates`, and `beds`. Indeed, these predictors are strongly correlated in pairs:
+
+```{r}
+kable(data.frame(cor(train[, c("price","amenities_internet", "amenities_wifi", "accommodates", "beds")], use="pairwise.complete.obs")),row.names = T)
+```
+
+Therefore we further reduce the stepwise-selected model to exclude `amenities_internet`, and `beds` (due to lower correlations with the response).
+
+The resulting linear model has the following structure:
+```{r}
+step_model = update(step_model, . ~ . -amenities_internet -beds)
+step_model$call
+```
+
+  
+#### 2.2. Model Diagnostics  
+  
+As before, we provide the model diagnostic plots and check that the assumptions 
+regarding the residuals hold.
+
+```{r}
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(step_model)
+par(mfrow=c(1,1))
+```
+
+We observe from the diagnostic plots that: 
+  
+1) The residuals are largely normally distributed, with several outliers on both ends of the distribution, as confirmed by the descriptive statistics of the residuals:  
+
+```{r}
+summary(step_model$residuals)
+```
+  
+
+2) There is no consistent remaining pattern in the residuals, and no pronounced 
+heteroscedasticity.  
+
+3) The outliers do not seem to have a large influence based on the Cook's distance (see chart below) and can therefore be ignored.
+
+```{r}
+plot(step_model, which=4, cook.levels=cutoff)
+```
+  
+
+  
+#### 2.3. Variable importance and coefficients  
+  
+The model coefficients for the statistically significant (at least 95% confidence level)  predictors / factor levels are provided below in the order of descending magnitude.
+
+```{r}
+kable(rank_var_imp(step_model))
+
+```
+
+
+#### 2.4. Model in-sample performance  
+
+The in-sample performance of the model is summarized below
+  
+```{r}
+kable(glance(step_model))
+```
+
+We can see that the stepwise-selected model explains about 66.28% of variance in the response.
+
+
+### 3. Full Linear Model (Dima)
+  
+#### 3.1. Model definition  
+  
+(which variables, describe approach)
+
+
+
+```{r}
+# Train the full model
+full_model = lm(price ~ . , data = train)
+```
+ 
+The resulting linear model has the following structure:
+
+```{r}
+full_model$call
+```
+  
+#### 3.2. Model Diagnostics  
+  
+**Linear model assumptions**
+  
+As before, we provide the model diagnostic plots and check that the assumptions 
+regarding the residuals hold.
+
+```{r}
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(full_model)
+par(mfrow=c(1,1))
+```
+
+We observe from the diagnostic plots that: 
+  
+1) The residuals are largely normally distributed, with several outliers on both ends of the distribution, as confirmed by the descriptive statistics of the residuals:  
+
+```{r}
+summary(full_model$residuals)
+```
+  
+
+2) There is no consistent remaining pattern in the residuals, and no pronounced 
+heteroscedasticity.  
+
+3) The outliers do not seem to have a large influence based on the Cook's distance (see chart below) and can therefore be ignored.
+
+```{r}
+plot(full_model, which=4, cook.levels=cutoff)
+```
+  
+**Variance inflation and multicollinearity**
+  
+As the check for variance inflation was done in the section 2, and the resulting stepwise model is a subset of the full model, we know that the full model will contain some superfluous variables. The variables with a high general variance inflation factor are summarised below.
+  
+```{r}
+###### Check variance inflation factors #######################
+full_vifs = data.frame(vif(full_model))
+names(full_vifs) = c("GVIF","Df","GVIF_corrected")
+high_vifs = full_vifs[full_vifs$GVIF>5,]
+kable(high_vifs[order(high_vifs$GVIF,decreasing = T), ],row.names = T)
+```
+  
+We encounter the same variables as in the stepwise selected model.
+
+  
+#### 3.3. Variable importance and coefficients  
+
+The model coefficients for the statistically significant (at least 95% confidence level)  predictors / factor levels are provided below in the order of descending magnitude.
+
+```{r}
+kable(rank_var_imp(full_model))
+```
+
+#### 3.4. Model in-sample performance  
+
+The in-sample performance of the model is summarized below
+  
+```{r}
+kable(glance(full_model))
+```
+
+We can see that the stepwise-selected model explains about 66.32% of variance in the response.
+Thus, the full model does not capture more variance than the model generated by the stepwise approach discussed above even though it has considerably more degrees of freedom (73 in the full model vs. 59 in the stepwise model). This means that for this dataset, the stepwise approach is very effective in removing non-relevant predictors.   
+
+  
+### 4. Full GBM Model (Kemi)
+  
+#### 4.1. Model definition  
+GBM or Gradient boosting model is a machine learning technique which produces a prediction model in the form of an ensemble of weak prediction models, typically decision trees. It builds the model in a stage-wise fashion and it generalizes them by allowing optimization of an arbitrary differentiable loss function. 
+
+We will be using our full data set for our first gbm model, then use just the variables that we ranked as two in our EDA. 
+
+```{r}
+gbm.test1 <- test[ , "price"]
+
+train_amenities = train[ , which(names(train) %in% c("amenities_tv","amenities_cable","amenities_wifi","amenities_internet",
+  "amenities_kitchen","amenities_ac","amenities_smoking","amenities_heating",
+  "amenities_washer","amenities_essentials","amenities_elevator"))]
+
+train[ , names(train_amenities)] = lapply(train_amenities, FUN=factor)
+
+gbm_model = gbm(price ~ ., train, distribution = "gaussian", n.trees = 5000, 
+                interaction.depth = 2, #1 implies an additive model, 2 implies a model with up to 2-way interactions
+                cv.folds = 5)
+```
+
+```{r}
+inp <- train[-c(3, 4:9, 14:16, 30, 33, 36:39, 42, 44)]
+gbm_model2 <- gbm(price ~., inp, distribution = "gaussian", n.trees = 5000, interaction.depth = 2, cv.folds = 5)
+```
+
+  
+#### 4.2. Model Diagnostics  
+When we take a look at the summary of both models based on the best iteration which in this case is 5000, we notice that for model 1, 'room_type' has the highest relative influence at 52.168035810. There's a big drop from that variable to the rext which is cleaning fee. Looking at the summary for model 2, we see that bedrooms is ranked highest at 50.287181208. The variables that are of importance in these models are a little different from the ones in our intuitive model. Next we will check the perfomance of the models using a 5 fold cross validation. 
+```{r}
+best.iter <- gbm.perf(gbm_model, method = "cv")
+print(best.iter)
+best.iter2 <- gbm.perf(gbm_model2, method = "cv")
+print(best.iter2)
+
+summary(gbm_model, n.trees = best.iter)
+summary(gbm_model2, n.trees = best.iter2)
+```
+
+We also wanted to look at a compact view of the first and last trees, more so for curiousity. We have briefly explained some of the tree variables below:
++ SplitVar - the variable that is used to plit. For a terminal node, -1 is used. 
++ SplitCodePred - contains index of 'object$c.split for a categorical split and if it's a terminal node it's the prediction
++ ErrorReduction - how much of the reduction of the loss function as a result of splitting this node
++ Weight - total weight of observation in the node. 
+
+```{r}
+print(pretty.gbm.tree(gbm_model, 1))
+print(pretty.gbm.tree(gbm_model, 5000))
+
+print(pretty.gbm.tree(gbm_model2, 1))
+print(pretty.gbm.tree(gbm_model2, 5000))
+```
+
+  
+#### 4.3. Variable importance and coefficients  
+  
+The model coefficients for the statistically significant (at least 95% confidence level)  predictors / factor levels are provided below in the order of descending magnitude.
+
+```{r}
+kable(rank_var_imp(gbm_model))
+kable(rank_var_imp(gbm_model2))
+```
+  
+#### 4.4. Model in-sample performance  
+In-sample performance: RMSE, Adj. Rsq / explained variance, AIC
+```{r}
+test$value3 <- predict(gbm_model, newdata = test)#PREDICTED PRICES
+sqrt(mean((test$value3 - gbm.test1)^2)) #RSME
+mean(abs(test$value3 - gbm.test1)) #Mean Absolute Error
+```
+  
+```{r}
+test$value4 <- predict(gbm_model2, newdata = test)#PREDICTED PRICES
+sqrt(mean((test$value4 - gbm.test1)^2)) #RSME
+mean(abs(test$value4 - gbm.test1)) #Mean Absolute Error
+```
+Comparing the RSME values for both models, we have model 1 being 0.4759428. Model 1 has a MAE 0.362. When we look at the second model, we see that we have a higher RSME at 0.5671623, as well as a higher MAE (.4379102).
+
+### Comparing model performance on out-of-sample data
+  
+Having built four different models we can compare their performance on out-of-sample data.
+This is done to understand how the model would perform on new data that was not used in training and to avoid selecting a model that overfits to the training dataset.
+
+```{r}
+actual = test$price
+
+int_pred = predict(int_model,newdata = test,type = "response")
+step_pred = predict(step_model,newdata = test,type = "response")
+full_pred = predict(full_model,newdata = test,type = "response")
+gbm_pred = predict.gbm(gbm_model,newdata = test,type = "response")
+
+results = rbind(data.frame(provide_performance(int_pred,actual))
+                ,data.frame(provide_performance(full_pred,actual))
+                ,data.frame(provide_performance(step_pred,actual))
+                ,data.frame(provide_performance(gbm_pred,actual))
+)
+
+results = cbind(list(model = c("Intuitive-selected","Stepwise-selected","Full LM", "Full GBM")),
+                results)
+
+kable(results)
+```
+
+
+Table with out-of-sample performance, model complexity (numer of variables)
+Comment on how we need to balance the two
+
+### Practical interpretation of model prediction quality and coefficients
+  
+For the one regression model (probably stepwise), add:  
+1) Plot prediction interval for Y vs. actual values, explain error in +/- percent of actual  
+2) Interpretation of the most important variables' coefficients as % changes in the response (because it is log-transformed, so multiplicative)  
+
+
+
+###
+Reference
+https://www.statmethods.net/stats/rdiagnostics.html 
+https://www.rdocumentation.org/packages/car/versions/3.0-0/topics/vif 
