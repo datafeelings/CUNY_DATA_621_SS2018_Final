@@ -46,6 +46,10 @@ library(car)
 library(broom)
 library(DataExplorer)
 library(knitr)
+library(ggplot2)
+library(gbm)
+
+source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/Graphical_Functions.R")
 
 # Function for variable importance
 library(dplyr)
@@ -146,33 +150,93 @@ train = within(train, {
   
 #### 1.1. Model definition  
   
-(which variables, describe approach)
+For the first model we worked one, we went with an intuitive linear regression model. A linear regression model tries to approximate the relationship between dependent and independent variables in a straight line by using statistical calculations to plot a trend line in a set of data points.
 
-```{r}
-# Placeholder for now, but please keep the name
+When we did our EDA, we ranked the variables from 0-2, 0 indicating the variable is of no importance and can be removed and 2 indicating that it is of high importance. When we created this intuitive model, we went with all the variables that we ranked 2. Our first step is to subset our training data to include only those variables. Once we subset our data, we wanted to see which path would yield more fruitful; removing NA rows or columns. We'll model both and compare them to each other to determine which path we should follow. 
 
+```{r echo=FALSE}
 two = train[ , -which(names(train) %in% c("host_response_rate","host_is_superhost","host_identity_verified",
  "room_type","accommodates","beds","extra_people","review_scores_communication",
  "review_scores_location","review_scores_value","instant_bookable", "require_guest_profile_picture", "reviews_per_month", "maximum_nights"))]
 
-subr = subset(two, !is.na(review_scores_rating)&!is.na(review_scores_accuracy)&!is.na(review_scores_cleanliness)&!is.na(review_scores_checkin))
+subr = subset(two, !is.na(review_scores_rating)&!is.na(review_scores_accuracy)&!is.na(review_scores_cleanliness)&!is.na(review_scores_checkin)) #remove NA rows
 
-int_model = lm(price~ ., data=subr)
-
+int_model = lm(price ~., data = subr)
 ```
-  
+
+```{r}
+subc = two[ , -which(names(two) %in% c("review_scores_rating", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_checkin"))] #remove review columns
+
+int_model2 = lm(price~., data = subc)
+```
+
+Next, we evaluated collinearity with the 'vif' fuction. The variables with (generalized) variance inflation factors are shown in descending order. All the values are below 5 so the factor variables can be disregarded. 
+```{r}
+vifs = data.frame(vif(int_model))
+names(vifs) = c("GVIF","Df","GVIF_corrected")
+attach(vifs)
+high_vifs <- vifs[order(-GVIF), ] 
+kable(high_vifs, row.names = T)
+detach(vifs)
+
+par(mfrow = c(2,2))
+plot(int_model)
+```
+
+```{r}
+vifs_c = data.frame(vif(int_model2))
+names(vifs_c) = c("GVIF","Df","GVIF_corrected")
+attach(vifs_c)
+high_vifs_c <- vifs_c[order(-GVIF), ] 
+kable(high_vifs_c, row.names = T)
+detach(vifs_c)
+
+par(mfrow = c(2,2))
+plot(int_model2)
+```
+The QQ-Plot falls mostly on a straight line, with the ends curving. This implies that our data may have more extreme values that we expected from the normal distribution that is indicated by the histogram.  
+
 #### 1.2. Model Diagnostics  
-  
-(distribution of residuals), for regression, cover the following:  
-Are (deviance) residuals normally distributed
-Is there a remaining pattern in the residuals
-Are any observations highly influential on coefficients
-  
+
+```{r}
+summary(int_model)
+plot(int_model, which =  4, cook.levels = cutoff)
+rmse_nor = sqrt(mean((int_model$residuals)^2)) #0.542415
+test$values = predict(int_model, test)
+```
+Looking at the residuals of 'int_model', we see that they are symmetric about the mean(0). Very few of the variables are not significant. 
+```{r}
+summary(int_model2)
+plot(int_model2, which =  4, cook.levels = cutoff)
+rmse_noc = sqrt(mean((int_model2$residuals)^2)) #0.5458898
+test$values2 = predict(int_model2, test)
+```
+Let's look at the summary for this model, focusing on the residuals first. We are checking for a symmetrical distribution across the residual summary points on the mean(0). From the values displayed, we see that there is a relatively symmetric distribution. We should also note that many of the variables are highly significant, indicated by three astericks. About 56% of our variance can be explained by our variables and our F-statistic is relatively larger than 1 given the size of our data. 
+
 #### 1.3. Variable importance and coefficients  
-(comment on p.value, the sign and magnitude) 
+Below is the model coefficients for the predictors/factor levels that are statistically significant are listed below. 
+
+```{r}
+kable(rank_var_imp(int_model))
+```
+
+```{r}
+kable(rank_var_imp(int_model2))
+```
+
 
 #### 1.4. Model in-sample performance  
-In-sample performance: RMSE, Adj. Rsq / explained variance, AIC
+Now we will summarize the in-sample performance of the models 
+
+```{r}
+kable(glance(int_model))
+```
+
+```{r}
+kable(glance(int_model2))
+```
+
+We have one model that explains 56% of variance and another that explains 57% of the variance .   
   
 
 ### 2. Stepwise-selected Regression Model (Dima)
@@ -373,12 +437,12 @@ Thus, the full model does not capture more variance than the model generated by 
 ### 4. Full GBM Model (Kemi)
   
 #### 4.1. Model definition  
-  
-(which variables, describe approach)
+GBM or Gradient boosting model is a machine learning technique which produces a prediction model in the form of an ensemble of weak prediction models, typically decision trees. It builds the model in a stage-wise fashion and it generalizes them by allowing optimization of an arbitrary differentiable loss function. 
+
+We will be using our full data set for our first gbm model, then use just the variables that we ranked as two in our EDA. 
 
 ```{r}
-# Placeholder for now, but please keep the name gbm_model
-library(gbm)
+gbm.test1 <- test[ , "price"]
 
 train_amenities = train[ , which(names(train) %in% c("amenities_tv","amenities_cable","amenities_wifi","amenities_internet",
   "amenities_kitchen","amenities_ac","amenities_smoking","amenities_heating",
@@ -386,36 +450,79 @@ train_amenities = train[ , which(names(train) %in% c("amenities_tv","amenities_c
 
 train[ , names(train_amenities)] = lapply(train_amenities, FUN=factor)
 
-gbm_model = gbm(price ~ ., train, distribution = "gaussian", n.trees = 5000, 
-                interaction.depth = 2, #1 implies an additive model, 2 implies a model with up to 2-way interactions
+gbm_model = gbm(price ~ ., train, distribution = "gaussian", n.trees = 1000, 
+                interaction.depth = 6,
+                shrinkage = 0.1,
                 cv.folds = 5)
+```
 
+```{r}
+# inp <- train[-c(3, 4:9, 14:16, 30, 33, 36:39, 42, 44)]
+# gbm_model2 <- gbm(price ~., inp, distribution = "gaussian", n.trees = 5000, interaction.depth = 2, cv.folds = 5)
 ```
 
   
 #### 4.2. Model Diagnostics  
-  
-(distribution of residuals), for regression, cover the following:  
-Are (deviance) residuals normally distributed
-Is there a remaining pattern in the residuals
-Are any observations highly influential on coefficients
-  
+
+When we take a look at the summary of both models based on the best iteration which in this case is 5000, we notice that for model 1, 'room_type' has the highest relative influence at 52.168035810. There's a big drop from that variable to the rext which is cleaning fee. Looking at the summary for model 2, we see that bedrooms is ranked highest at 50.287181208. The variables that are of importance in these models are a little different from the ones in our intuitive model. Next we will check the perfomance of the models using a 5 fold cross validation. 
+
 ```{r}
-summary(gbm_model)
+best.iter <- gbm.perf(gbm_model, method = "cv")
+print(best.iter)
+# best.iter2 <- gbm.perf(gbm_model2, method = "cv")
+# print(best.iter2)
+
+summary(gbm_model, n.trees = best.iter)
+# summary(gbm_model2, n.trees = best.iter2)
+```
+
+We also wanted to look at a compact view of the first and last trees, more so for curiousity. We have briefly explained some of the tree variables below:
++ SplitVar - the variable that is used to plit. For a terminal node, -1 is used. 
++ SplitCodePred - contains index of 'object$c.split for a categorical split and if it's a terminal node it's the prediction
++ ErrorReduction - how much of the reduction of the loss function as a result of splitting this node
++ Weight - total weight of observation in the node. 
+
+```{r}
+print(pretty.gbm.tree(gbm_model, 1))
+print(pretty.gbm.tree(gbm_model, best.iter))
+
+# print(pretty.gbm.tree(gbm_model2, 1))
+# print(pretty.gbm.tree(gbm_model2, 5000))
 ```
 
   
 #### 4.3. Variable importance and coefficients  
   
-The model coefficients for the statistically significant (at least 95% confidence level)  predictors / factor levels are provided below in the order of descending magnitude.
+The first 15 variables ordered by relative influence cover over 90% of the reduction of the squared error in the GBM model. They are summarized in the table below in order of descending importance (contribution to the reduction of the squared error normalized to 100%). 
 
 ```{r}
-# kable(rank_var_imp(gbm_model))
+gbm_model_summary = summary(gbm_model,plotit=FALSE,order = TRUE)
+names(gbm_model_summary) = c("Variable","Relative.Influence")
+kable(gbm_model_summary[1:15,],row.names = FALSE)
 
+ggplot(gbm_model_summary[1:15,], aes(x = reorder(Variable, Relative.Influence),
+                                     y= Relative.Influence)) + geom_col(fill="steelblue4", color="gray") + theme_classic() + 
+  geom_text(aes(label=round(Relative.Influence,1)),
+              hjust=-0.1) + coord_flip()
+ 
 ```
   
 #### 4.4. Model in-sample performance  
 In-sample performance: RMSE, Adj. Rsq / explained variance, AIC
+```{r}
+test$value3 <- predict(gbm_model, newdata = test)#PREDICTED PRICES
+sqrt(mean((test$value3 - gbm.test1)^2)) #RMSE
+mean(abs(test$value3 - gbm.test1)) #Mean Absolute Error
+
+```
+  
+```{r}
+# test$value4 <- predict(gbm_model2, newdata = test)#PREDICTED PRICES
+sqrt(mean((test$value4 - gbm.test1)^2)) #RSME
+mean(abs(test$value4 - gbm.test1)) #Mean Absolute Error
+```
+Comparing the RSME values for both models, we have model 1 being 0.4759428. Model 1 has a MAE 0.362. When we look at the second model, we see that we have a higher RSME at 0.5671623, as well as a higher MAE (.4379102).
+
   
   
 ### Comparing model performance on out-of-sample data
@@ -460,3 +567,4 @@ For the one regression model (probably stepwise), add:
 Reference
 https://www.statmethods.net/stats/rdiagnostics.html 
 https://www.rdocumentation.org/packages/car/versions/3.0-0/topics/vif 
+https://www.rdocumentation.org/packages/gbm/versions/2.1.3/topics/summary.gbm 
