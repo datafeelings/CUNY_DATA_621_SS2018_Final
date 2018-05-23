@@ -49,6 +49,8 @@ library(knitr)
 library(ggplot2)
 library(gbm)
 
+set.seed(123)
+
 source("https://raw.githubusercontent.com/datafeelings/CUNY_DATA_621_SS2018_Final/master/2_code/Graphical_Functions.R")
 
 # Function for variable importance
@@ -555,6 +557,7 @@ kable(results)
 
 
 Table with out-of-sample performance, model complexity (numer of variables)
+
 Evaluating the prediction quality between the four models, we observe a clear improvement in the residual errors and explained variance as model complexity is increasing: our "intuitive" linear regression model captures only 56.6% of the variance in the response, whereas the GBM model operating both on a larger set of predictors, and accounting for their interactions, is able to capture 75.2% of the variance in the price.  
 On the other hand, there is no improvement in the prediction quality between the stepwise-selected and the full model indicating that the limit of the variability of the data that can be explained without applying non-linear models is at about 67.3% and is covered by the predictors maintained in the stepwise-selected model.  
 One of the major benefits of linear regression approaches is their interpretability, and therefore we choose the stepwise-selected model for further analysis discussion over the more precise, but less transparent GBM model.
@@ -583,7 +586,7 @@ step_pred_ci = step_pred_ci[order(step_pred_ci$fit),]
 
 ggplot(aes(x=fit, y = actual),data=step_pred_ci) +
   geom_point(size=0.5) + geom_path(aes(x=,y=lwr,color=I("red"))) +
-  geom_path(aes(x=fit,y=upr,color=I("red"))) +
+  geom_path(aes(x=fit,y=upr,color=I("red"))) + xlab("prediction") +
   ggtitle("Predicted vs. Actual Values on the Test Dataset")
 # +
 #   scale_x_log10() + scale_y_log10()
@@ -600,10 +603,10 @@ Moving on to interpretation of the model coefficients, we have observed that the
 
 While multiple other predictors contribute to the precision of the stepwise-selected model, we can provide an illuminating practical interpretation regarding the effect of these major predictors on the listing price.
 
-As each of the discussed predictors is a factor variable, each individual level can be understood as presence/absence of a particular parameter in a given listing (e.g. precence of the AC amenity). As the response was log-transformed in the model, the effect of the predictors is multiplicative, meaning that the coefficient of the predictor indicates a percentage increase in the value of the response variable. The effects of the major predictors are summarized accordingly in the table below.
+As each of the discussed predictors is a factor variable, each individual level can be understood as presence/absence of a particular parameter in a given listing (e.g. precence of the AC amenity). As the response was log-transformed in the model, the effect of the predictors is multiplicative [QUOTE https://www.cscu.cornell.edu/news/statnews/stnews83.pdf], meaning that the coefficient of the predictor corresponds to a percentage increase in the value of the response variable compared to the baseline level used for that factor in the model. The effects of the major predictors are summarized accordingly in the table below (some factor levels are omitted for brevity).
 
 ```{r}
-kable(rank_var_imp(step_model)[1:20,])
+kable(rank_var_imp(step_model)[1:30,])
 ```
 
 
