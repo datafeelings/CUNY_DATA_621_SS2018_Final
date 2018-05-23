@@ -451,7 +451,7 @@ train_amenities = train[ , which(names(train) %in% c("amenities_tv","amenities_c
 train[ , names(train_amenities)] = lapply(train_amenities, FUN=factor)
 
 gbm_model = gbm(price ~ ., train, distribution = "gaussian", n.trees = 1000, 
-                interaction.depth = 6,
+                interaction.depth = 4,
                 shrinkage = 0.1,
                 cv.folds = 5)
 ```
@@ -468,6 +468,8 @@ When we take a look at the summary of both models based on the best iteration wh
 
 ```{r}
 best.iter <- gbm.perf(gbm_model, method = "cv")
+gbm.perf(gbm_model,  plot.it = TRUE,  oobag.curve = TRUE,  
+         overlay = TRUE,  method = "cv")
 print(best.iter)
 # best.iter2 <- gbm.perf(gbm_model2, method = "cv")
 # print(best.iter2)
@@ -553,13 +555,58 @@ kable(results)
 
 
 Table with out-of-sample performance, model complexity (numer of variables)
-Comment on how we need to balance the two
+Evaluating the prediction quality between the four models, we observe a clear improvement in the residual errors and explained variance as model complexity is increasing: our "intuitive" linear regression model captures only 56.6% of the variance in the response, whereas the GBM model operating both on a larger set of predictors, and accounting for their interactions, is able to capture 75.2% of the variance in the price.  
+On the other hand, there is no improvement in the prediction quality between the stepwise-selected and the full model indicating that the limit of the variability of the data that can be explained without applying non-linear models is at about 67.3% and is covered by the predictors maintained in the stepwise-selected model.  
+One of the major benefits of linear regression approaches is their interpretability, and therefore we choose the stepwise-selected model for further analysis discussion over the more precise, but less transparent GBM model.
+
 
 ### Practical interpretation of model prediction quality and coefficients
   
-For the one regression model (probably stepwise), add:  
-1) Plot prediction interval for Y vs. actual values, explain error in +/- percent of actual  
-2) Interpretation of the most important variables' coefficients as % changes in the response (because it is log-transformed, so multiplicative)  
+In this section, a practical interpetation of the prediction quality and the most important regression coefficients derived from the stepwise-selected linar model is provided.
+
+First, we visualize the predicted versus the actual values together with the predicted interval of the response translated to the units of price (EUR). We can see that the prediction become increasingly uncertain as the listing price grows above 500 EUR, but the majority of the actual values lies within the prediction interval. 
+
+```{r}
+# Provide prediction interval 
+# Scale back to EUR
+# Order by X
+
+step_pred_ci = predict(step_model,newdata = test,type = "response",
+                       interval = c("prediction"))
+
+step_pred_ci = data.frame(step_pred_ci)
+step_pred_ci$actual = test$price
+step_pred_ci = exp(step_pred_ci) # scale back to EUR
+
+step_pred_ci = step_pred_ci[order(step_pred_ci$fit),]
+
+
+ggplot(aes(x=fit, y = actual),data=step_pred_ci) +
+  geom_point(size=0.5) + geom_path(aes(x=,y=lwr,color=I("red"))) +
+  geom_path(aes(x=fit,y=upr,color=I("red"))) +
+  ggtitle("Predicted vs. Actual Values on the Test Dataset")
+# +
+#   scale_x_log10() + scale_y_log10()
+
+```
+
+
+Moving on to interpretation of the model coefficients, we have observed that the most important predictors identified by stepwise selection are (in order of descending p-value):
+1) `room_type`
+2) `neighborhood_group_cleansed`
+3) `availability_30`
+4) `review_scores_value`
+5) `amenities_ac`
+
+While multiple other predictors contribute to the precision of the stepwise-selected model, we can provide an illuminating practical interpretation regarding the effect of these major predictors on the listing price.
+
+As each of the discussed predictors is a factor variable, each individual level can be understood as presence/absence of a particular parameter in a given listing (e.g. precence of the AC amenity). As the response was log-transformed in the model, the effect of the predictors is multiplicative, meaning that the coefficient of the predictor indicates a percentage increase in the value of the response variable. The effects of the major predictors are summarized accordingly in the table below.
+
+```{r}
+kable(rank_var_imp(step_model)[1:20,])
+```
+
+
 
 
 
