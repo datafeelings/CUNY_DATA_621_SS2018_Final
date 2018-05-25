@@ -183,6 +183,7 @@ detach(vifs)
 
 par(mfrow = c(2,2))
 plot(int_model)
+
 ```
 
 ```{r}
